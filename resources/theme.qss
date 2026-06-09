@@ -1,5 +1,8 @@
+                
+                
+DirectConvertView {background-color: #000; color: white; }     
+
                 /* ------------ Estilo del contorno de los paneles ---------- */
-DirectConvertView {background-color: #000; color: white; }
 
 QGroupBox { border: 1px solid transparent; border-radius: 6px; margin-top: 0px; } 
 
@@ -65,8 +68,11 @@ QPushButton#help_btn:pressed { background-color: rgba(12, 140, 233, 0.5);}
 QLineEdit { background-color: #171717; border: 1px solid #555; padding: 5px 5px 5px 15px; border-top-right-radius: 0px; 
             border-bottom-right-radius: 0px; border-top-left-radius: 14px; border-bottom-left-radius: 14px; border-right: none; }
 
-QMenu::shortcut { color: transparent; }
+QMenu { background-color: #333; border: 1px solid #333; border-radius: 6px; }
+QMenu::item { background-color: transparent; color: #ffffff; border-radius: 4px; padding: 6px 10px 6px 10px}
+QMenu::item:selected { background-color: rgba(12, 140, 233, 0.5); border 1px solid rgba(12, 140, 233, 0.2)}
+QMenu::separator { height: 1px; background: #222; margin-left: 8px; margin-right: 8px; }
 
                 /* ------------ Estilo de los titulos de los recuadros ---------- */
 
-QLabel { font-weight: bold; font-size: 14px; border: 1px solid transparent; background-color: transparent ; }
+QLabel { font-weight: bold; font-size: 14px; border: 1px solid transparent; background-color: transparent; }
