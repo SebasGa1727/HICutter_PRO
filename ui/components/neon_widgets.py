@@ -29,7 +29,6 @@ class NeonTreeView(QtWidgets.QTreeView):
             super().drawBranches(painter, rect, index)
         except Exception as e:
             print(f"Error en 'drawBranches': {e}")
-        
     
 class NeonSelectionDelegate(QtWidgets.QStyledItemDelegate):
     """
@@ -60,7 +59,7 @@ class NeonSelectionDelegate(QtWidgets.QStyledItemDelegate):
                 painter.setBrush(QtGui.QColor(12, 140, 233, 153)) # <-Aqui se modifica el color de fondo para la seleccion de color
                 
                 # Dibujamos un rectángulo con bordes redondeados (6px) para que coincida con tu QSS
-                painter.drawRoundedRect(opt.rect, 6, 6)
+                painter.drawRoundedRect(opt.rect, 4, 4)
                 painter.restore()
                 
                 # 3. Forzamos que el texto sea blanco para que contraste con el fondo azul
@@ -73,3 +72,28 @@ class NeonSelectionDelegate(QtWidgets.QStyledItemDelegate):
             print(f"Error en NeonSelectionDelegate: {e}")
             try: super().paint(painter, option, index)
             except: pass
+
+    def updateEditorGeometry(self, editor, option, index):
+        """Secuestra la geometría del QLineEdit al renombrar para hacerlo más grande"""
+        rect = option.rect
+        
+        # Expandimos el rectángulo: ajustamos los márgenes (izquierda, arriba, derecha, abajo)
+        # Valores negativos expanden hacia afuera.
+        rect.adjust(-1, -1, 10, 1) 
+        
+        editor.setGeometry(rect)
+
+class NeonProxyStyle(QtWidgets.QProxyStyle):
+    """
+    Estilo proxy global que secuestra el motor de dibujo de Qt.
+    Su función principal es erradicar el rectángulo/sombreado nativo 
+    de foco (Tabulador) en todos los widgets de la aplicación.
+    """
+    def drawPrimitive(self, element, option, painter, widget=None):
+        # PE_FrameFocusRect es el nombre interno del sombreado de foco nativo
+        if element == QtWidgets.QStyle.PrimitiveElement.PE_FrameFocusRect:
+            # Al hacer return sin llamar a super(), el sombreado simplemente nunca se dibuja.
+            return 
+        
+        # Para todo lo demás, dejamos que Qt dibuje normalmente
+        super().drawPrimitive(element, option, painter, widget)

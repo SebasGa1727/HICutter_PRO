@@ -6,7 +6,11 @@ if __name__ == "__main__":
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 from ui.components.neon_widgets import HiddenFilesFilterProxyModel, NeonTreeView, NeonSelectionDelegate
+from ui.dialogs.converter_filter_dialog import FilterDialog
+from ui.dialogs.converter_config_dialog import ConfigDialog
+from ui.dialogs.multi_folder_dialog import MultiFolderDialog
 from utils.logger import setup_logger
+from utils.asset_manager import assets
 
 logger = setup_logger(__name__)
 
@@ -25,104 +29,48 @@ class DirectConvertView(QtWidgets.QWidget):
     request_convert = QtCore.pyqtSignal(dict) # Enviaremos la configuración final
     request_help = QtCore.pyqtSignal() #Enviaremos video tutorial de ayuda
     request_create_folder = QtCore.pyqtSignal()
-    request_create_multi_folder = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
         self._setup_ui()
         self._setup_mock_data() # Datos falsos solo para ver cómo se verá
+
         
     def _setup_ui(self):
-        self.universal_btn_width = 112
         """
-                                                    1. PANEL SUPERIOR (Controles y Reglas)
+                                                    1. PANEL SUPERIOR (Titulo de la vista y boton de ayuda)
         """
         top_layout = QtWidgets.QHBoxLayout()
 
-        # Bloque Derecho
-        top_group_right = QtWidgets.QGroupBox()
-        top_group_right.setObjectName("top")
-        top_right_layout = QtWidgets.QHBoxLayout(top_group_right)
-        top_right_layout.setContentsMargins(0, 0, 0, 0)
+        lbl_title = QtWidgets.QLabel("Preparacion de lote")
+        lbl_title.setProperty("estilo", "title")
+        lbl_title.setStyleSheet("margin: 0px 0px 0px 10px;")
 
-        # Botones
-        self.btn_config_export = QtWidgets.QPushButton("⚙️ Formato")
-        self.btn_config_export.setMinimumWidth(self.universal_btn_width)
-        self.btn_config_export.clicked.connect(self._open_config_dialog)
-
-        self.btn_filter_tool = QtWidgets.QPushButton("🪄 Filtros")
-        self.btn_filter_tool.setMinimumWidth(self.universal_btn_width)
-        self.btn_filter_tool.clicked.connect(self._open_filters_dialog)
-
-        self.help_btn = QtWidgets.QPushButton("Ayuda")
-        self.help_btn.setObjectName("help_btn")
-        self.help_btn.setMinimumWidth(self.universal_btn_width)
+        self.help_btn = QtWidgets.QPushButton("AYUDA")
+        self.help_btn.setProperty("estilo", "primario")
         self.help_btn.clicked.connect(self.request_help.emit)
 
-        top_right_layout.addStretch(1)
-        top_right_layout.addWidget(self.btn_config_export)
-        top_right_layout.setSpacing(10)
-        top_right_layout.addWidget(self.btn_filter_tool)
-        top_right_layout.setSpacing(10)
-        top_right_layout.addWidget(self.help_btn)
-
-        # Bloque Izquierdo
-        top_group_left = QtWidgets.QGroupBox()
-        top_group_left.setObjectName("top")
-        top_left_layout = QtWidgets.QVBoxLayout(top_group_left)
-        top_left_layout.setContentsMargins(0, 0, 0, 0)
-
-        # Seccion de "ruta" de SALIDA y boton "explorar"
-        ruta_salida_layout = QtWidgets.QHBoxLayout()
-        self.txt_out_dir = QtWidgets.QLineEdit()
-        self.txt_out_dir.setPlaceholderText("Carpeta de salida...")
-        self.txt_out_dir.setReadOnly(True)
-        self.txt_out_dir.setMaximumWidth(520)
-
-        self.btn_explore_right = QtWidgets.QPushButton("Explorar")
-        self.btn_explore_right.setObjectName("explore")
+        # Armado del layout superior
+        top_layout.addWidget(lbl_title)
+        top_layout.addStretch(1)
+        top_layout.addWidget(self.help_btn)
+        top_layout.addSpacing(15)
         
-        ruta_salida_layout.addWidget(self.txt_out_dir, stretch=100)
-        ruta_salida_layout.setSpacing(0)
-        ruta_salida_layout.addWidget(self.btn_explore_right)
-        ruta_salida_layout.addStretch(1)
-        
-        top_left_layout.addLayout(ruta_salida_layout)
-
-        # Armamos el top_layout 
-        top_layout.addWidget(top_group_left, stretch=1)
-        top_layout.addWidget(top_group_right, stretch=1)
         """
                                                     2. ZONA CENTRAL (El Splitter de 3 Paneles)
         """
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
         self.splitter.setChildrenCollapsible(False)
+        self.splitter.setHandleWidth(14)
 
         # --- PANEL IZQUIERDO: Explorador de Windows ---
-        left_group = QtWidgets.QGroupBox()
-        left_layout = QtWidgets.QVBoxLayout(left_group)
-        left_layout.setSpacing(0)
+        left_frame = QtWidgets.QGroupBox()
+        left_layout = QtWidgets.QVBoxLayout(left_frame)
+        left_layout.setContentsMargins(0, 0, 10, 0) #<- Margen derecho para separar del splitter
         
-        # Contenedor superior
-        left_top_container = QtWidgets.QFrame()
-        left_top_container.setObjectName("container")
-
-        # Contenedor inferior
-        left_bottom_container = QtWidgets.QFrame()
-        left_bottom_container.setObjectName("container")
-
-        #Layout de titulo superior
-        left_top_layout = QtWidgets.QHBoxLayout()
-        left_top_layout.setContentsMargins(7, 7, 7, 7)
-
-        #Layout de boton inferior
-        left_bottom_layout = QtWidgets.QHBoxLayout()
-        left_bottom_layout.setContentsMargins(7, 7, 7, 7)
-
-        #Titulo recuadro izquierdo
-        self.left_top_title = QtWidgets.QLabel("Explorador de Archivos")
-        self.left_top_title.setContentsMargins(0, 0, 0, 0)
+        lbl_left = QtWidgets.QLabel("ARCHIVOS LOCALES")
+        lbl_left.setProperty("estilo", "splitter_title")
 
         self.os_model = QtGui.QFileSystemModel()
         self.os_model.setRootPath(QtCore.QDir.rootPath())
@@ -149,27 +97,88 @@ class DirectConvertView(QtWidgets.QWidget):
         self.tree_os.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.DragOnly) #<- Poder arrastrar objetos
         self.tree_os.setItemDelegate(NeonSelectionDelegate(self.tree_os))
 
-        # Botones de la parte inferior del grupo
-        self.btn_add_element_to_sandbox = QtWidgets.QPushButton("➕ Agregar al organizador")
+        self.btn_add_element_to_sandbox = QtWidgets.QPushButton("→ AÑADIR AL ORGANIZADOR")
+        self.btn_add_element_to_sandbox.setStyleSheet("QPushButton { padding: 6px;}")
 
-        left_top_layout.addStretch(1)
-        left_top_layout.addWidget(self.left_top_title)
-        left_top_layout.addStretch(1)
-        left_top_container.setLayout(left_top_layout)
-
-        left_bottom_layout.addWidget(self.btn_add_element_to_sandbox)
-        left_bottom_container.setLayout(left_bottom_layout)
-
-        left_layout.addWidget(left_top_container)
-        left_layout.setSpacing(5)
+        # Armado del layout izquierdo
+        left_layout.addWidget(lbl_left)
+        left_layout.addSpacing(10)
         left_layout.addWidget(self.tree_os, stretch=1)
-        left_layout.setSpacing(5)
-        left_layout.addWidget(left_bottom_container)
+        left_layout.addWidget(self.btn_add_element_to_sandbox)
+        left_layout.addSpacing(5)
 
         # --- PANEL CENTRAL: Árbol del Sandbox ---
-        center_group = QtWidgets.QGroupBox()
-        center_layout = QtWidgets.QVBoxLayout(center_group)
-        center_layout.setSpacing(0)
+        center_frame = QtWidgets.QGroupBox()
+        center_layout = QtWidgets.QVBoxLayout(center_frame)
+        center_layout.setContentsMargins(10, 0, 10, 0) #<- para separar de ambos splitters
+
+        sandbox_header_layout = QtWidgets.QHBoxLayout()
+        lbl_center = QtWidgets.QLabel("ORGANIZADOR VIRTUAL")
+        lbl_center.setProperty("estilo", "splitter_title")
+
+        # CONFIGURACION DEL MENU DE CARPETAS 
+        self.menu_virtual_folder = QtWidgets.QMenu()
+        self.menu_virtual_folder.setToolTipsVisible(True)
+
+        self.single_folder_menu = QtGui.QAction("Carpeta individual", self)
+        self.single_folder_menu.setIcon(assets.get_icon("folder.svg"))
+        self.single_folder_menu.setShortcut("ctrl+shift+n")
+        self.single_folder_menu.setToolTip("Atajo: ctrl+shift+N")
+        self.single_folder_menu.setShortcutVisibleInContextMenu(False)
+        self.single_folder_menu.triggered.connect(self.request_create_folder.emit)
+
+        self.multi_folder_menu = QtGui.QAction("Multiples carpetas", self)
+        self.multi_folder_menu.setIcon(assets.get_icon("multi_folder.svg"))
+        self.multi_folder_menu.setShortcut("ctrl+shift+m")
+        self.multi_folder_menu.setToolTip("Atajo: ctrl+shift+M")
+        self.multi_folder_menu.setShortcutVisibleInContextMenu(False)
+        self.multi_folder_menu.triggered.connect(self._open_create_multi_folder)
+
+        self.menu_virtual_folder.addAction(self.single_folder_menu)
+        self.menu_virtual_folder.addSeparator()
+        self.menu_virtual_folder.addAction(self.multi_folder_menu)
+
+        # Configuracion de botones
+        self.btn_add_virtual_folder = QtWidgets.QPushButton()
+        self.btn_add_virtual_folder.setIcon(assets.get_icon("folder.svg"))
+        self.btn_add_virtual_folder.setToolTip("Crear carpeta")
+        self.btn_add_virtual_folder.setMenu(self.menu_virtual_folder)
+
+        self.btn_rename_virutal_element = QtWidgets.QPushButton()
+        self.btn_rename_virutal_element.setIcon(assets.get_icon("lapiz.svg"))
+        self.btn_rename_virutal_element.setToolTip("Renombrar")
+        self.btn_rename_virutal_element.clicked.connect(self._open_rename_visualizer)
+
+        self.btn_filter_tool = QtWidgets.QPushButton()
+        self.btn_filter_tool.setIcon(assets.get_icon("filtro_color.svg"))
+        self.btn_filter_tool.setToolTip("Aplicar filtros")
+        self.btn_filter_tool.clicked.connect(self._open_filters_dialog)
+
+        self.btn_create_pdf = QtWidgets.QPushButton()
+        self.btn_create_pdf.setIcon(assets.get_icon("pdf.svg"))
+        self.btn_create_pdf.setToolTip("Herrramientas de PDF")
+        self.btn_create_pdf.clicked.connect(self._open_config_pdf_visualizer)
+
+        self.btn_delete_virtual_element = QtWidgets.QPushButton()
+        self.btn_delete_virtual_element.setIcon(assets.get_icon("basura.svg"))
+        self.btn_delete_virtual_element.setToolTip("Eliminar elemento")
+        self.btn_delete_virtual_element.clicked.connect(self._delete_selected_element)
+
+        for btn in [self.btn_add_virtual_folder, self.btn_rename_virutal_element, self.btn_filter_tool, self.btn_create_pdf, self.btn_delete_virtual_element]:
+            btn.setProperty("estilo", "tool_btn")
+            if btn == self.btn_delete_virtual_element:
+                btn.setProperty("estilo", "eliminar")
+            if btn == self.btn_filter_tool:
+                btn.setProperty("estilo", "rainbow")
+            btn.setFixedSize(65, 40)
+        
+        sandbox_header_layout.addWidget(lbl_center)
+        sandbox_header_layout.addStretch(1)
+        sandbox_header_layout.addWidget(self.btn_add_virtual_folder)
+        sandbox_header_layout.addWidget(self.btn_rename_virutal_element)
+        sandbox_header_layout.addWidget(self.btn_filter_tool)
+        sandbox_header_layout.addWidget(self.btn_create_pdf)
+        sandbox_header_layout.addWidget(self.btn_delete_virtual_element)
 
         self.tree_sandbox = NeonTreeView()
         self.tree_sandbox.setHeaderHidden(True)
@@ -182,76 +191,25 @@ class DirectConvertView(QtWidgets.QWidget):
         self.tree_sandbox.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)             #<- Solo mueve la carpeta, no genera copia
         self.tree_sandbox.setItemDelegate(NeonSelectionDelegate(self.tree_sandbox))
 
-        # Contenedor de los botones
-        center_top_container = QtWidgets.QFrame()
-        center_top_container.setObjectName("container")
+        self.lbl_sandbox_info = QtWidgets.QLabel("Selecciona elementos para modificar")
+        self.lbl_sandbox_info.setStyleSheet("color: #666; font-size: 11px; font-style: italic;")
+        self.lbl_sandbox_info.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-        center_butons = QtWidgets.QHBoxLayout()
-        center_butons.setContentsMargins(7, 7, 7, 7)
-
-        #Titulo del recuadro central
-        self.center_title = QtWidgets.QLabel("Organizador de exportación")
-        self.center_title.setContentsMargins(0, 0, 0, 0)
-
-        #Botones del recuadro
-        self.menu_virtual_folder = QtWidgets.QMenu()
-        self.menu_virtual_folder.setToolTipsVisible(True)
-
-        self.single_folder_menu = QtGui.QAction("📂 Carpeta individual", self)
-        self.single_folder_menu.setShortcut("ctrl+shift+n")
-        self.single_folder_menu.setToolTip("Atajo: ctrl+shift+N")
-        self.single_folder_menu.setShortcutVisibleInContextMenu(False)
-        self.single_folder_menu.triggered.connect(self.request_create_folder.emit)
-
-        self.multi_folder_menu = QtGui.QAction("🗂️ Multiples carpetas", self)
-        self.multi_folder_menu.setShortcut("ctrl+shift+m")
-        self.multi_folder_menu.setToolTip("Atajo: ctrl+shift+M")
-        self.multi_folder_menu.setShortcutVisibleInContextMenu(False)
-        self.multi_folder_menu.triggered.connect(self.request_create_multi_folder.emit)
-
-        self.menu_virtual_folder.addAction(self.single_folder_menu)
-        self.menu_virtual_folder.addSeparator()
-        self.menu_virtual_folder.addAction(self.multi_folder_menu)
-
-        self.btn_add_virtual_folder = QtWidgets.QPushButton("➕ Crear")
-        self.btn_add_virtual_folder.setMinimumWidth(self.universal_btn_width)
-        self.btn_add_virtual_folder.setMenu(self.menu_virtual_folder)
-
-        self.btn_rename_virutal_element = QtWidgets.QPushButton("✏️ Renombrar")
-        self.btn_rename_virutal_element.setMinimumWidth(self.universal_btn_width)
-
-        self.btn_delete_virtual_element = QtWidgets.QPushButton("🗑️ Eliminar")
-        self.btn_delete_virtual_element.setObjectName("delete_button")
-        self.btn_delete_virtual_element.setMinimumWidth(self.universal_btn_width)
-
-        center_butons.addSpacing(2)
-        center_butons.addWidget(self.center_title)
-        center_butons.addStretch(1)
-        center_butons.addWidget(self.btn_add_virtual_folder)
-        center_butons.addSpacing(4)
-        center_butons.addWidget(self.btn_rename_virutal_element)
-        center_butons.addSpacing(4)
-        center_butons.addWidget(self.btn_delete_virtual_element)
-
-        center_top_container.setLayout(center_butons)
-
-        center_layout.addWidget(center_top_container)
+        # Armado del layout central
+        center_layout.addLayout(sandbox_header_layout)
         center_layout.addSpacing(5)
         center_layout.addWidget(self.tree_sandbox, stretch=1)
+        center_layout.addSpacing(7)
+        center_layout.addWidget(self.lbl_sandbox_info)
+        center_layout.addSpacing(13)
     
-        # --- PANEL DERECHO: Cuadrícula de Miniaturas ---
-        right_group = QtWidgets.QGroupBox()
-        right_layout = QtWidgets.QVBoxLayout(right_group)
-        right_layout.setSpacing(0)
+        # --- PANEL DERECHO: Cuadrícula de Miniaturas (visualizador) ---
+        right_frame = QtWidgets.QGroupBox()
+        right_layout = QtWidgets.QVBoxLayout(right_frame)
+        right_layout.setContentsMargins(10, 0, 0, 0) #<- Margenes para separar del splitter
 
-        right_title_container = QtWidgets.QFrame()
-        right_title_container.setObjectName("container")
-
-        right_top_layout = QtWidgets.QHBoxLayout()
-        right_top_layout.setContentsMargins(7, 7, 7, 7)
-
-        self.right_title = QtWidgets.QLabel("Visualizador")
-        self.right_title.setContentsMargins(0, 0, 0, 0)
+        lbl_right = QtWidgets.QLabel("VISUALIZADOR")
+        lbl_right.setProperty("estilo", "splitter_title")
 
         self.list_thumbnails = QtWidgets.QListView()
         self.list_thumbnails.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
@@ -266,69 +224,87 @@ class DirectConvertView(QtWidgets.QWidget):
         self.list_thumbnails.setAcceptDrops(False)
         self.list_thumbnails.setMovement(QtWidgets.QListView.Movement.Static) #<- Impide el movimiento de los elementos
         self.list_thumbnails.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers) #<- No permite que se edite el texto
-
-        # Armado de titulo
-        right_top_layout.addStretch(1)
-        right_top_layout.addWidget(self.right_title)
-        right_top_layout.addStretch(1)
-
-        right_title_container.setLayout(right_top_layout)
-
-        # Armado final derecho
-        right_layout.addWidget(right_title_container)
-        right_layout.addSpacing(5)
-        right_layout.addWidget(self.list_thumbnails, stretch=1)
         
-        # Armado del splitter
-        self.splitter.addWidget(left_group)
-        self.splitter.addWidget(center_group)
-        self.splitter.addWidget(right_group)
-        self.splitter.setHandleWidth(14)
+        #Armado del layout derecho
+        right_layout.addWidget(lbl_right)
+        right_layout.addSpacing(10)
+        right_layout.addWidget(self.list_thumbnails, stretch=1)
 
+        # Armado del splitter
+        self.splitter.addWidget(left_frame)
+        self.splitter.addWidget(center_frame)
+        self.splitter.addWidget(right_frame)
         # Ajustar proporciones del Splitter
-        self.splitter.setStretchFactor(0, 0)
-        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 2)
         self.splitter.setStretchFactor(2, 1)
         """
                                                     3. PANEL INFERIOR (Botones de Acción)
         """
         bottom_layout = QtWidgets.QHBoxLayout()
+        bottom_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+
+        # Seccion de "ruta" de SALIDA y boton "explorar"
+        out_dir_layout = QtWidgets.QHBoxLayout()
+        self.txt_out_dir = QtWidgets.QLineEdit()
+        self.txt_out_dir.setPlaceholderText("Carpeta de salida...")
+        self.txt_out_dir.setReadOnly(True)
+        self.txt_out_dir.setMaximumWidth(520)
+        self.txt_out_dir.setProperty("batch_setup_view", "out_dir_style")
+
+        self.btn_explore_right = QtWidgets.QPushButton(". . .")
+        self.btn_explore_right.setToolTip("Explorar")
+        self.btn_explore_right.setFixedSize(50, 30)
+        self.btn_explore_right.setProperty("batch_setup_view", "out_dir_style")
+        
+        out_dir_layout.addWidget(self.txt_out_dir, stretch=1)
+        out_dir_layout.setSpacing(0)
+        out_dir_layout.addWidget(self.btn_explore_right)
+        out_dir_layout.addSpacing(0)
+        
+        # Boton de formato
+        self.btn_config_export = QtWidgets.QPushButton("⚙️ FORMATO")
+        self.btn_config_export.setToolTip("Formatos de exportacion")
+        self.btn_config_export.clicked.connect(self._open_config_dialog)
 
         # Botones principales
-        self.btn_cancel = QtWidgets.QPushButton("Cancelar")
-        self.btn_cancel.setObjectName("cancel_btn")
+        self.btn_cancel = QtWidgets.QPushButton("CANCELAR")
+        self.btn_cancel.setProperty("estilo", "cancelar")
         self.btn_cancel.clicked.connect(self.request_cancel.emit)
 
-        self.btn_convert = QtWidgets.QPushButton("Convertir")
-        self.btn_convert.setObjectName("convert_btn")
+        self.btn_convert = QtWidgets.QPushButton("CONVERTIR")
+        self.btn_convert.setProperty("estilo", "primario")
         self.btn_convert.clicked.connect(lambda: self.request_convert.emit({}))
 
-        bottom_layout.addSpacing(6)
+        for btn in [self.btn_cancel, self.btn_convert]:
+            btn.setFixedSize(100, 32)
+
+        #armado del bottom layout
+        bottom_layout.addLayout(out_dir_layout, stretch=5)
+        bottom_layout.addStretch(2)
+        bottom_layout.addWidget(self.btn_config_export)
+        bottom_layout.addStretch(5)
         bottom_layout.addWidget(self.btn_cancel)
-        bottom_layout.addStretch(1)
+        bottom_layout.addSpacing(15)
         bottom_layout.addWidget(self.btn_convert)
-        bottom_layout.addSpacing(6)
+
         """
                                                                 Armado global
         """
         self.main_layout = QtWidgets.QVBoxLayout(self)
-        self.main_layout.setSpacing(10)
-        self.main_layout.setContentsMargins(2, 2, 2, 10)
+        self.main_layout.setSpacing(0)
+        self.main_layout.setContentsMargins(10, 10, 10, 10)
         self.main_layout.addLayout(top_layout)
         self.main_layout.addWidget(self.splitter, stretch=1)
+        self.main_layout.addSpacing(15)
         self.main_layout.addLayout(bottom_layout)
+        self.main_layout.addSpacing(5)
 
     def _open_filters_dialog(self) -> None:
         """Instancia y ejecuta el diálogo de filtros en modo síncrono (Modal)"""
-        try:
-            from ui.dialogs.converter_filter_dialog import FilterDialog
-        except ImportError:
-            #TODO - Borrar esto cuando se conecte a main:
-            # Fallback por si estás ejecutando el script de manera aislada 
-            # y las carpetas aún no están organizadas en el PATH de esa forma
-            import sys
-            logger.warning("Asegúrate de que filter_dialog.py exista en ui/dialogs/")
-            return
+        #TODO - Borrar esto cuando se conecte a main:
+        # Fallback por si estás ejecutando el script de manera aislada 
+        # y las carpetas aún no están organizadas en el PATH de esa forma
 
         # LOGICA DE SELECCIÓN DE IMAGEN
         # 1. Intentamos obtener la selección del visualizador derecho
@@ -342,7 +318,7 @@ class DirectConvertView(QtWidgets.QWidget):
             pass
             
         # Imagen para poder realizar la muestra
-        image_path = "input\MX_EXCE_MARZO23_01.JPG" 
+        image_path = "601.jpg"
 
         dialog = FilterDialog(self, initial_image_path=image_path)
         
@@ -355,18 +331,30 @@ class DirectConvertView(QtWidgets.QWidget):
 
     def _open_config_dialog(self) -> None:
         """Instancia y ejecuta el diálogo de configuración técnica"""
-        try:
-            from ui.dialogs.converter_config_dialog import ConfigDialog
-        except ImportError:
-            #TODO: Borrar esto cuando se conecte a main
-            logger.warning("Asegúrate de que config_dialog.py exista en ui/dialogs/")
-            return
 
         dialog = ConfigDialog(self, current_config=getattr(self, "_saved_config", {}))
         
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             self._saved_config = dialog.get_export_settings()
             logger.info(f"Configuración técnica actualizada: {self._saved_config}")
+
+    def _open_create_multi_folder(self):
+        """Abre el dialogo de la creacion de folder"""
+        dialog = MultiFolderDialog(self)
+
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            #TODO Crear una funcion que cree carpetas en el arbol
+            # create_folders(**dialog)
+            logger.info("Valores guardados")
+
+    def _open_rename_visualizer(self):
+        pass
+
+    def _open_config_pdf_visualizer(self):
+        pass
+    
+    def _delete_selected_element(self):
+        pass
 
     def _setup_mock_data(self):
         """Datos visuales falsos solo para la Fase 1 (Visualización)."""
@@ -398,6 +386,8 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("Fusion")
     load_global_stylesheet(app)
+
+    assets.init_graphic_resources()
     
     test_view = DirectConvertView()
     test_view.resize(1200, 800)

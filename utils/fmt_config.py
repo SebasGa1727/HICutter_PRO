@@ -38,6 +38,11 @@ class UserConfigManager:
             "pre_set_output_dir": "",
             "last_dir": "",
             "input_last_dir": ""
+        },
+        "multi_folder_dialog":{
+            "1": "",
+            "2": "",
+            "3": ""
         }
        
     }
