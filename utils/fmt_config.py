@@ -43,8 +43,12 @@ class UserConfigManager:
             "1": "",
             "2": "",
             "3": ""
+        },
+        "batch_rename_dialog": {
+            "1": "",
+            "2": "",
+            "3": ""
         }
-       
     }
 
     def __init__(self) -> None:

@@ -104,6 +104,12 @@ QLineEdit {
 QLineEdit:focus {
     border: 1px solid #0c8ce9;
 }
+QLineEdit[estilo="valido"] {
+    border: 1px solid #0c8ce9;
+}
+QLineEdit[estilo="invalido"] {
+    border: 1px solid #F44336;
+}
 
 QLineEdit[batch_setup_view="out_dir_style"] {
     background-color: #171717; 
@@ -114,10 +120,6 @@ QLineEdit[batch_setup_view="out_dir_style"] {
     border-top-left-radius: 6px; 
     border-bottom-left-radius: 6px; 
     border-right: none;
-}
-
-QLineEdit[multi_folder_dialog="invalido"]{
-    border: 1px solid #F44336;
 }
 
 QMenu { 
@@ -145,6 +147,17 @@ QMenu::separator {
 }
 QMenu::icon {
     margin-left: 15px;
+}
+QTableWidget { 
+    background-color: #171717; 
+    border: 1px solid #333; 
+    border-radius: 6px; 
+}
+QHeaderView::section { 
+    background-color: #222; 
+    color: #888; font-weight: bold; 
+    border: none; 
+    padding: 4px; 
 }
 
 /* ------------ 6. HERRAMIENTAS GLOBALES IMPORTANTES ---------- */
@@ -300,6 +313,12 @@ QLabel[estilo="splitter_title"] {
     letter-spacing: 1px; 
     margin: 10px 0px 0px 10px;
 }
+QLabel[estilo="label_form"] {
+    font-weight: bold; 
+    font-size: 10pt;
+    color: #aaa;
+    background-color: transparent;
+}
 QLabel[converter_filter_dialog="filter_title"] {
     color: #bbb; 
     font-weight: bold; 
@@ -308,12 +327,6 @@ QLabel[converter_filter_dialog="filter_title"] {
 }
 QLabel[converter_filter_dialog="filter_title"][estado="modificado"] {
     color: rgba(12, 141, 233, 0.9);
-}
-QLabel[multi_folder_dialog="label_form"] {
-    font-weight: bold; 
-    font-size: 10pt;
-    color: #bbb;
-    background-color: transparent;
 }
 
 /* ------------ 9.SPINBOXES (Cajas numericas)---------- */

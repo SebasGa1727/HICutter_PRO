@@ -149,7 +149,7 @@ class MultiFolderDialog(QtWidgets.QDialog):
 
     def _create_label(self, name: str) -> QtWidgets.QLabel:
             label = QtWidgets.QLabel(name)
-            label.setProperty("multi_folder_dialog","label_form")
+            label.setProperty("estilo", "label_form")
             label.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
             return label
     
@@ -196,7 +196,7 @@ class MultiFolderDialog(QtWidgets.QDialog):
             
     def _visual_invalid(self, invalid_line: QtWidgets.QLineEdit):
         """Modificacion visual de los botones cuando es un caracter invalido"""
-        invalid_line.setProperty("multi_folder_dialog", "invalido")
+        invalid_line.setProperty("estilo", "invalido")
         invalid_line.style().unpolish(invalid_line)
         invalid_line.style().polish(invalid_line)
 
@@ -205,10 +205,16 @@ class MultiFolderDialog(QtWidgets.QDialog):
     def _visual_valid(self):
         """Modificacion visual para cambiar al estado normal"""
         for line_edit in self.line_edit_list:
-            if line_edit.property("multi_folder_dialog") == "invalido":
-                line_edit.setProperty("multi_folder_dialog", None)
+            if line_edit.property("estilo") == "invalido" or line_edit.text() == "":
+                line_edit.setProperty("estilo", None)
                 line_edit.style().unpolish(line_edit)
                 line_edit.style().polish(line_edit)
+
+            if line_edit.text() != "":
+                line_edit.setProperty("estilo", "valido")
+                line_edit.style().unpolish(line_edit)
+                line_edit.style().polish(line_edit)
+
         self.btn_create.setEnabled(True)
 
     def keyPressEvent(self, event: QtGui.QKeyEvent):

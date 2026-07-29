@@ -9,6 +9,7 @@ from ui.components.neon_widgets import HiddenFilesFilterProxyModel, NeonTreeView
 from ui.dialogs.converter_filter_dialog import FilterDialog
 from ui.dialogs.converter_config_dialog import ConfigDialog
 from ui.dialogs.multi_folder_dialog import MultiFolderDialog
+from ui.dialogs.batch_rename_dialog import BatchRenameDialog
 from utils.logger import setup_logger
 from utils.asset_manager import assets
 
@@ -154,17 +155,12 @@ class DirectConvertView(QtWidgets.QWidget):
         self.btn_filter_tool.setToolTip("Aplicar filtros")
         self.btn_filter_tool.clicked.connect(self._open_filters_dialog)
 
-        self.btn_create_pdf = QtWidgets.QPushButton()
-        self.btn_create_pdf.setIcon(assets.get_icon("pdf.svg"))
-        self.btn_create_pdf.setToolTip("Herrramientas de PDF")
-        self.btn_create_pdf.clicked.connect(self._open_config_pdf_visualizer)
-
         self.btn_delete_virtual_element = QtWidgets.QPushButton()
         self.btn_delete_virtual_element.setIcon(assets.get_icon("basura.svg"))
         self.btn_delete_virtual_element.setToolTip("Eliminar elemento")
         self.btn_delete_virtual_element.clicked.connect(self._delete_selected_element)
 
-        for btn in [self.btn_add_virtual_folder, self.btn_rename_virutal_element, self.btn_filter_tool, self.btn_create_pdf, self.btn_delete_virtual_element]:
+        for btn in [self.btn_add_virtual_folder, self.btn_rename_virutal_element, self.btn_filter_tool, self.btn_delete_virtual_element]:
             btn.setProperty("estilo", "tool_btn")
             if btn == self.btn_delete_virtual_element:
                 btn.setProperty("estilo", "eliminar")
@@ -177,7 +173,6 @@ class DirectConvertView(QtWidgets.QWidget):
         sandbox_header_layout.addWidget(self.btn_add_virtual_folder)
         sandbox_header_layout.addWidget(self.btn_rename_virutal_element)
         sandbox_header_layout.addWidget(self.btn_filter_tool)
-        sandbox_header_layout.addWidget(self.btn_create_pdf)
         sandbox_header_layout.addWidget(self.btn_delete_virtual_element)
 
         self.tree_sandbox = NeonTreeView()
@@ -348,10 +343,13 @@ class DirectConvertView(QtWidgets.QWidget):
             logger.info("Valores guardados")
 
     def _open_rename_visualizer(self):
-        pass
+        """Abre el dialogo para renombrar los elementos"""
+        self.element_list = ["prueba.jpg", "prueba_2.jpg", "prueba_3.raw"]
+        dialog = BatchRenameDialog(parent=self, items_to_rename=self.element_list)
 
-    def _open_config_pdf_visualizer(self):
-        pass
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+                    #TODO Crear la conexcion entre el diccionario recibido y el renombrado de los elementos
+                    logger.info("Valores guardados")
     
     def _delete_selected_element(self):
         pass
