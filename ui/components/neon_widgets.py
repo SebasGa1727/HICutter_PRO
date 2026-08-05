@@ -1,4 +1,4 @@
-from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt6 import QtWidgets, QtCore, QtGui, QtSvg
 
 class HiddenFilesFilterProxyModel(QtCore.QSortFilterProxyModel):
     """Filtra archivos y carpetas que empiezan con punto (.)"""
@@ -88,12 +88,37 @@ class NeonProxyStyle(QtWidgets.QProxyStyle):
     Estilo proxy global que secuestra el motor de dibujo de Qt.
     Su función principal es erradicar el rectángulo/sombreado nativo 
     de foco (Tabulador) en todos los widgets de la aplicación.
+    Y controlar el estado de las 'flechitas' de despliegue en el menu de los botones
     """
+    def __init__(self, style=None):
+        super().__init__(style)
+        # Precargamos el SVG en memoria para no leer el disco cada vez que se dibuja un botón
+        self.arrow_down_renderer = QtSvg.QSvgRenderer("resources/icons/flecha_abajo.svg")
+
     def drawPrimitive(self, element, option, painter, widget=None):
         # PE_FrameFocusRect es el nombre interno del sombreado de foco nativo
         if element == QtWidgets.QStyle.PrimitiveElement.PE_FrameFocusRect:
             # Al hacer return sin llamar a super(), el sombreado simplemente nunca se dibuja.
             return 
+
+        if element == QtWidgets.QStyle.PrimitiveElement.PE_IndicatorArrowDown:
+            
+            # Qt nos entrega 'option.rect', que es la caja invisible PERFECTA calculada 
+            # por el motor nativo donde iba a pintar su flecha gris.
+            rect = option.rect
+            
+            # Si la caja nativa es muy grande, podemos calcular un cuadro 
+            # más pequeño (ej. 12x12 px) justo en el centro de esa zona.
+            size = 8
+            x = rect.center().x() - (size / 2)
+            y = rect.center().y() - (size / 2)
+            custom_rect = QtCore.QRectF(x, y, size, size)
+
+            # Usamos nuestro SVG en lugar de la brocha nativa de Qt
+            self.arrow_down_renderer.render(painter, custom_rect)
+            
+            # Retornamos sin llamar al 'super()' para que la flecha gris original NO se dibuje
+            return
         
         # Para todo lo demás, dejamos que Qt dibuje normalmente
         super().drawPrimitive(element, option, painter, widget)

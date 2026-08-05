@@ -5,13 +5,14 @@ if __name__ == "__main__":
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from PyQt6 import QtWidgets, QtCore, QtGui
-from ui.components.neon_widgets import HiddenFilesFilterProxyModel, NeonTreeView, NeonSelectionDelegate
+from ui.components.neon_widgets import HiddenFilesFilterProxyModel, NeonTreeView, NeonSelectionDelegate, NeonProxyStyle
 from ui.dialogs.converter_filter_dialog import FilterDialog
 from ui.dialogs.converter_config_dialog import ConfigDialog
 from ui.dialogs.multi_folder_dialog import MultiFolderDialog
 from ui.dialogs.batch_rename_dialog import BatchRenameDialog
 from utils.logger import setup_logger
 from utils.asset_manager import assets
+from utils.icon_map import HICutterIcons
 
 logger = setup_logger(__name__)
 
@@ -43,17 +44,28 @@ class DirectConvertView(QtWidgets.QWidget):
                                                     1. PANEL SUPERIOR (Titulo de la vista y boton de ayuda)
         """
         top_layout = QtWidgets.QHBoxLayout()
+        top_layout.setSpacing(0)
 
-        lbl_title = QtWidgets.QLabel("Preparacion de lote")
+        return_button = QtWidgets.QPushButton(HICutterIcons.BACK)
+        return_button.setProperty("estilo", "icono")
+        return_button.setProperty("variante", "regresar")
+        return_button.setFixedSize(30,20)
+        return_button.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        return_button.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        return_button.clicked.connect(self.request_cancel.emit)
+
+        lbl_title = QtWidgets.QLabel("CONVERTIDOR")
         lbl_title.setProperty("estilo", "title")
-        lbl_title.setStyleSheet("margin: 0px 0px 0px 10px;")
 
         self.help_btn = QtWidgets.QPushButton("AYUDA")
         self.help_btn.setProperty("estilo", "primario")
         self.help_btn.clicked.connect(self.request_help.emit)
+        self.help_btn.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.help_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
 
         # Armado del layout superior
-        top_layout.addWidget(lbl_title)
+        top_layout.addWidget(return_button, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
+        top_layout.addWidget(lbl_title, alignment=QtCore.Qt.AlignmentFlag.AlignVCenter)
         top_layout.addStretch(1)
         top_layout.addWidget(self.help_btn)
         top_layout.addSpacing(15)
@@ -100,6 +112,8 @@ class DirectConvertView(QtWidgets.QWidget):
 
         self.btn_add_element_to_sandbox = QtWidgets.QPushButton("→ AÑADIR AL ORGANIZADOR")
         self.btn_add_element_to_sandbox.setStyleSheet("QPushButton { padding: 6px;}")
+        self.btn_add_element_to_sandbox.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.btn_add_element_to_sandbox.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
 
         # Armado del layout izquierdo
         left_layout.addWidget(lbl_left)
@@ -142,6 +156,7 @@ class DirectConvertView(QtWidgets.QWidget):
         # Configuracion de botones
         self.btn_add_virtual_folder = QtWidgets.QPushButton()
         self.btn_add_virtual_folder.setIcon(assets.get_icon("folder.svg"))
+        self.btn_add_virtual_folder.setObjectName("boton_crear_carpeta")
         self.btn_add_virtual_folder.setToolTip("Crear carpeta")
         self.btn_add_virtual_folder.setMenu(self.menu_virtual_folder)
 
@@ -161,6 +176,8 @@ class DirectConvertView(QtWidgets.QWidget):
         self.btn_delete_virtual_element.clicked.connect(self._delete_selected_element)
 
         for btn in [self.btn_add_virtual_folder, self.btn_rename_virutal_element, self.btn_filter_tool, self.btn_delete_virtual_element]:
+            btn.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+            btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             btn.setProperty("estilo", "tool_btn")
             if btn == self.btn_delete_virtual_element:
                 btn.setProperty("estilo", "eliminar")
@@ -245,12 +262,14 @@ class DirectConvertView(QtWidgets.QWidget):
         self.txt_out_dir.setPlaceholderText("Carpeta de salida...")
         self.txt_out_dir.setReadOnly(True)
         self.txt_out_dir.setMaximumWidth(520)
-        self.txt_out_dir.setProperty("batch_setup_view", "out_dir_style")
+        self.txt_out_dir.setProperty("converter_setup_view", "out_dir_style")
 
         self.btn_explore_right = QtWidgets.QPushButton(". . .")
         self.btn_explore_right.setToolTip("Explorar")
         self.btn_explore_right.setFixedSize(50, 30)
-        self.btn_explore_right.setProperty("batch_setup_view", "out_dir_style")
+        self.btn_explore_right.setProperty("converter_setup_view", "out_dir_style")
+        self.btn_explore_right.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.btn_explore_right.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         
         out_dir_layout.addWidget(self.txt_out_dir, stretch=1)
         out_dir_layout.setSpacing(0)
@@ -258,28 +277,24 @@ class DirectConvertView(QtWidgets.QWidget):
         out_dir_layout.addSpacing(0)
         
         # Boton de formato
-        self.btn_config_export = QtWidgets.QPushButton("⚙️ FORMATO")
+        self.btn_config_export = QtWidgets.QPushButton("⚙️ CONFIGURACIÓN")
         self.btn_config_export.setToolTip("Formatos de exportacion")
+        self.btn_config_export.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.btn_config_export.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.btn_config_export.clicked.connect(self._open_config_dialog)
 
-        # Botones principales
-        self.btn_cancel = QtWidgets.QPushButton("CANCELAR")
-        self.btn_cancel.setProperty("estilo", "cancelar")
-        self.btn_cancel.clicked.connect(self.request_cancel.emit)
-
+        # Boton de convertir
         self.btn_convert = QtWidgets.QPushButton("CONVERTIR")
         self.btn_convert.setProperty("estilo", "primario")
+        self.btn_convert.setFixedSize(100, 32)
+        self.btn_convert.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.btn_convert.clicked.connect(lambda: self.request_convert.emit({}))
 
-        for btn in [self.btn_cancel, self.btn_convert]:
-            btn.setFixedSize(100, 32)
-
-        #armado del bottom layout
+        # Armado del bottom layout
         bottom_layout.addLayout(out_dir_layout, stretch=5)
         bottom_layout.addStretch(2)
         bottom_layout.addWidget(self.btn_config_export)
         bottom_layout.addStretch(5)
-        bottom_layout.addWidget(self.btn_cancel)
         bottom_layout.addSpacing(15)
         bottom_layout.addWidget(self.btn_convert)
 
@@ -297,10 +312,6 @@ class DirectConvertView(QtWidgets.QWidget):
 
     def _open_filters_dialog(self) -> None:
         """Instancia y ejecuta el diálogo de filtros en modo síncrono (Modal)"""
-        #TODO - Borrar esto cuando se conecte a main:
-        # Fallback por si estás ejecutando el script de manera aislada 
-        # y las carpetas aún no están organizadas en el PATH de esa forma
-
         # LOGICA DE SELECCIÓN DE IMAGEN
         # 1. Intentamos obtener la selección del visualizador derecho
         selected_indexes = self.list_thumbnails.selectionModel().selectedIndexes()
@@ -322,7 +333,7 @@ class DirectConvertView(QtWidgets.QWidget):
             filtros_elegidos = dialog.get_filter_settings()
             logger.info(f"Filtros aceptados en la UI: {filtros_elegidos}")
             #TODO
-            # Aquí guardarás los filtros en una variable para cuando el usuario dé a 'Convertir'
+            # Aquí guardarás los filtros en una variable para cuando el usuario de a 'Convertir'
 
     def _open_config_dialog(self) -> None:
         """Instancia y ejecuta el diálogo de configuración técnica"""
@@ -382,7 +393,9 @@ class DirectConvertView(QtWidgets.QWidget):
 # ==========================================
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyle("Fusion")
+    base_style = QtWidgets.QStyleFactory.create("Fusion")
+
+    app.setStyle(NeonProxyStyle(base_style))
     load_global_stylesheet(app)
 
     assets.init_graphic_resources()

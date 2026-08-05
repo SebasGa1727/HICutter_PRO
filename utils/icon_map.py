@@ -8,3 +8,7 @@ class HICutterIcons:
     PLUS = "\uf002"
     ARROW_UP = "\uf003"
     ARROW_DOWN = "\uf004"
+    BACK = "\uf005"
+    ARROW_LEFT = "\uf006"
+    ARROW_RIGHT = "\uf007"
+    BLOCK = "\uf008"

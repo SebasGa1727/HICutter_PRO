@@ -55,6 +55,19 @@ QTreeView::item:selected, QListView::item:selected {
     border-radius: 4px; 
     color: #ffffff; 
 }
+/* Cuando la carpeta tiene hijos y está cerrada */
+QTreeView::branch:has-children:!has-siblings:closed,
+QTreeView::branch:closed:has-children:has-siblings {
+    border-image: none;
+    image: url(resources/icons/flecha_derecha_tree.svg);
+}
+
+/* Cuando la carpeta se despliega (abierta) */
+QTreeView::branch:open:has-children:!has-siblings,
+QTreeView::branch:open:has-children:has-siblings  {
+    border-image: none;
+    image: url(resources/icons/flecha_abajo_tree.svg);
+}
 
 /* ------------ 4. SCROLLBARS Y SPLITTERS ---------- */
 QScrollBar:vertical { 
@@ -111,7 +124,7 @@ QLineEdit[estilo="invalido"] {
     border: 1px solid #F44336;
 }
 
-QLineEdit[batch_setup_view="out_dir_style"] {
+QLineEdit[converter_setup_view="out_dir_style"] {
     background-color: #171717; 
     border: 1px solid #555; 
     padding: 5px 5px 5px 15px; 
@@ -277,20 +290,21 @@ QPushButton[estilo="eliminar"]:pressed {
     background: rgba(244, 67, 54, 0.4); 
 }
 
-QPushButton[estilo="icono"] {
-    padding: 0px; border: none; margin: 0px;
-}
 
 QPushButton[estilo="tool_btn"] {
     margin: 10px 0px 0px 0px; padding: 5px;
 }
 
-QPushButton[batch_setup_view="out_dir_style"] {
+QPushButton[converter_setup_view="out_dir_style"] {
     border-top-left-radius: 0px; 
     border-bottom-left-radius: 0px; 
     border-top-right-radius: 6px; 
     border-bottom-right-radius: 6px; 
     padding: 0px 0px 7px 0px;
+}
+
+QPushButton[estilo="sin_borde"] {
+    border: none;
 }
 
 /* ------------ 8. SISTEMA DE LABELS (Titulos) ---------- */
@@ -305,6 +319,8 @@ QLabel[estilo="title"] {
     color: #ddd; 
     font-size: 13.5pt;
     font-weight: bold;
+    margin: 0px 0px 0px 0px;
+    padding: 0px 0px 0px 0px;
 }
 QLabel[estilo="splitter_title"] {
     color: #bbb; 
@@ -397,12 +413,12 @@ QComboBox:focus {
 QComboBox::drop-down {
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 20px;
+    width: 15px;
 }
 QComboBox::down-arrow {
-    font-family: "hicutter_icons\uf004";
-    width: 12px;
-    height: 12px;
+    image: url(resources/icons/flecha_abajo.svg);
+    width: 10px;
+    height: 10px;
 }
 
 /* ------------ 12.Checkboxes (Cajas de validacion) ---------- */
@@ -437,7 +453,7 @@ QFrame[linea="gris"] {
 
 QPushButton[estilo="icono"] {
     font-family: "hicutter_icons"; 
-    font-size: 17px; 
+    font-size: 17px;
     background-color: transparent;
     color: #555; 
     border: none;
@@ -450,19 +466,28 @@ QPushButton[estilo="icono"]:hover, QPushButton[estilo="icono"]:focus {
 QPushButton[estilo="icono"]:pressed {
     color: rgba(12, 140, 233, 0.4); 
 }
-
 QPushButton[estilo="icono"][variante="icono_flecha"] { 
     font-size: 11px;
 }
 QPushButton[estilo="icono"][variante="icono_flecha"]:!checked {
-    color: #555;
+    color: rgba(12, 141, 233, 0.9);
 }
 QPushButton[estilo="icono"][variante="icono_flecha"]:checked {
-    color: rgba(12, 141, 233, 0.9);
+    color: #555;
 }
 QPushButton[estilo="icono"][variante="icono_flecha"][frame_hover="true"]:!checked {
     color: rgba(12, 141, 233, 0.6);
 }
 QPushButton[estilo="icono"][variante="icono_flecha"][frame_hover="true"]:checked {
     color: rgba(12, 141, 233, 0.6);
+}
+QPushButton[estilo="icono"][variante="regresar"] { 
+    font-size: 14px;
+    color: #aaa;
+}
+QPushButton[estilo="icono"][variante="regresar"]:hover, QPushButton[estilo="icono"][variante="regresar"]:focus { 
+    color: #fff;
+}
+QPushButton[estilo="icono"][variante="regresar"]:pressed { 
+    color: #888;
 }

@@ -3,8 +3,8 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 class ConfigDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, current_config: dict = None):
         super().__init__(parent)
-        self.setWindowTitle("Configuración de Formatos")
-        self.resize(400, 300)
+        self.setWindowTitle("Configuración de conversión")
+        self.resize(360, 300)
         self.setWindowFlag(QtCore.Qt.WindowType.WindowContextHelpButtonHint, False)
         
         self.current_config = current_config or {}
@@ -15,16 +15,12 @@ class ConfigDialog(QtWidgets.QDialog):
     def _setup_ui(self):
         main_layout = QtWidgets.QVBoxLayout(self)
         main_layout.setContentsMargins(25, 20, 25, 20)
-        # Título
-        lbl_titulo = QtWidgets.QLabel("Configuracion de formatos")
-        lbl_titulo.setProperty("estilo", "title")
-        lbl_titulo.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # Panel de conversion
         converter_layout = QtWidgets.QVBoxLayout()
 
-        converter_lbl_title = QtWidgets.QLabel("CONVERSIÓN")
-        converter_lbl_title.setProperty("estilo", "splitter_title")
+        converter_lbl_title = QtWidgets.QLabel("CONFIGURACIÓN DE CONVERSIÓN")
+        converter_lbl_title.setProperty("estilo", "title")
         converter_lbl_title.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
         
         self.converter_format = QtWidgets.QComboBox()
@@ -39,79 +35,25 @@ class ConfigDialog(QtWidgets.QDialog):
         
         self.converter_color_space = QtWidgets.QComboBox()
         self.converter_color_space.addItems(["sRGB (Web/Universal)", "Adobe RGB", "ProPhoto RGB", "Escala de Grises"])
-    
+
+        for combobox in [self.converter_format, self.converter_color_space]:
+            combobox.setEditable(True)
+            line_edit = combobox.lineEdit()
+            line_edit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            line_edit.setReadOnly(True)
+
         # Creacion del formulario
-        left_form_layout = QtWidgets.QFormLayout()
-        left_form_layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        left_form_layout.setSpacing(15)
-        left_form_layout.addRow("Formato de Exportación:", self.converter_format)
-        left_form_layout.addRow("Calidad de Compresión:", self.converter_quality)
-        left_form_layout.addRow("Espacio de Color:", self.converter_color_space)
+        form_layout = QtWidgets.QFormLayout()
+        form_layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        form_layout.setSpacing(15)
+        form_layout.addRow("Formato de Exportación:", self.converter_format)
+        form_layout.addRow("Calidad de Compresión:", self.converter_quality)
+        form_layout.addRow("Espacio de Color:", self.converter_color_space)
 
         # Armado del layout de conversion
         converter_layout.addWidget(converter_lbl_title)
-        converter_layout.addSpacing(15)
-        converter_layout.addLayout(left_form_layout)
-
-        # Panel derecho
-        export_layout = QtWidgets.QVBoxLayout()
-        
-        exporter_lbl_title = QtWidgets.QLabel("EXPORTACIÓN")
-        exporter_lbl_title.setProperty("estilo", "splitter_title")
-        exporter_lbl_title.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
-
-        self.image_quality = QtWidgets.QSpinBox()
-        self.image_quality.setMaximumWidth(43)
-        self.image_quality.setRange(10, 100)
-        self.image_quality.setSuffix(" %")
-        self.image_quality.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.image_quality.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-
-        self.image_dpi = QtWidgets.QSpinBox()
-        self.image_dpi.setMaximumWidth(30)
-        self.image_dpi.setRange(72, 600)
-        self.image_dpi.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.image_dpi.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-
-        dimensiones_layout = QtWidgets.QHBoxLayout()
-        self.image_size_type = QtWidgets.QComboBox()
-        self.image_size_type.addItems(["Lado corto", "Lado largo", "Cuadrado"])
-
-        self.image_size_value = QtWidgets.QSpinBox()
-        self.image_size_value.setMaximumWidth(80)
-        self.image_size_value.setRange(500, 10000)
-        self.image_size_value.setSuffix(" px")
-        self.image_size_value.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.image_size_value.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-
-        dimensiones_layout.addWidget(self.image_size_type)
-        dimensiones_layout.addWidget(self.image_size_value)
-
-        # Creacion del formulario
-        right_form_layout = QtWidgets.QFormLayout()
-        right_form_layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        right_form_layout.setSpacing(15)
-        right_form_layout.addRow("Calidad de la imagen:", self.image_quality)
-        right_form_layout.addRow("DPI:", self.image_dpi)
-        right_form_layout.addRow("Dimensiones:", dimensiones_layout)
-
-        # Creacion del layout de exportacion
-        export_layout.addWidget(exporter_lbl_title)
-        export_layout.addSpacing(15)
-        export_layout.addLayout(right_form_layout)
-
-        # Linea divisoria
-        vertical_line = QtWidgets.QFrame()
-        vertical_line.setFrameShape(QtWidgets.QFrame.Shape.VLine)
-        vertical_line.setProperty("linea", "gris")
-
-        # Splitter
-        splitter_layout = QtWidgets.QHBoxLayout()
-        splitter_layout.addLayout(converter_layout)
-        splitter_layout.addSpacing(15)
-        splitter_layout.addWidget(vertical_line)
-        splitter_layout.addSpacing(15)
-        splitter_layout.addLayout(export_layout)
+        converter_layout.addSpacing(20)
+        converter_layout.addLayout(form_layout)
 
         # Botones inferiores
         btn_layout = QtWidgets.QHBoxLayout()
@@ -128,9 +70,8 @@ class ConfigDialog(QtWidgets.QDialog):
         btn_layout.addWidget(self.btn_accept)
         
         # Layout Principal
-        main_layout.addWidget(lbl_titulo)
         main_layout.addSpacing(20)
-        main_layout.addLayout(splitter_layout)
+        main_layout.addLayout(converter_layout)
         main_layout.addStretch(1)
         main_layout.addLayout(btn_layout)
 
