@@ -228,6 +228,11 @@ class MainWindow(QtWidgets.QMainWindow):
 			QtWidgets.QMessageBox.warning(self, 'Error', 'No se pudo cargar la imagen')
 			return
 		self.current_image_path = fname
+
+		# Colocamos la informacion del HUD para el modo individual
+		nombre_archivo = os.path.basename(fname)
+		self.canvas.set_hud_info(nombre_archivo, "Procesamiento individual")
+
 		self.canvas.load_image(cv_image=img)
 		# Cambiar a la vista del editor
 		self.stack.setCurrentIndex(1)

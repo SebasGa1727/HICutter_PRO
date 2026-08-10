@@ -60,3 +60,30 @@ class PointManager:
         rect[3] = pts[np.argmax(diff)]  # bottom-left (max diff)
 
         return rect
+    
+    def update_point(self, index: int, new_pt: Tuple[float, float]) -> None:
+        """
+        Actualiza las coordenadas de un punto específico.
+        Fundamental para la función de arrastre (drag) de nodos existentes.
+        """
+        if 0 <= index < len(self.points):
+            self.points[index] = (float(new_pt[0]), float(new_pt[1]))
+
+    def set_points_from_rect(self, p1: Tuple[float, float], p2: Tuple[float, float]) -> None:
+        """
+        Genera 4 puntos ordenados a partir de 2 puntos diagonales de un recuadro.
+        Sobrescribe los puntos existentes.
+        """
+        self.reset()
+        
+        # Determinar limites lógicos del rectángulo matemático
+        min_x = min(p1[0], p2[0])
+        max_x = max(p1[0], p2[0])
+        min_y = min(p1[1], p2[1])
+        max_y = max(p1[1], p2[1])
+
+        # Se añaden en orden: Top-Left, Top-Right, Bottom-Right, Bottom-Left
+        self.add_point((min_x, min_y))
+        self.add_point((max_x, min_y))
+        self.add_point((max_x, max_y))
+        self.add_point((min_x, max_y))
