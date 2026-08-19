@@ -5,7 +5,7 @@ from PyQt6 import QtCore, QtGui
 from core.processor import process_perspective_crop
 from core.output_fmt import export_image
 from utils.logger import setup_logger
-from utils.fmt_config import config_manager
+from utils.pdf_th_config import config_manager
 try:
     from core.AI_exporter import export_yolo_data
     AI_EXPORTER_AVAILABLE = True

@@ -5,18 +5,20 @@ import os
 import gc
 from PyQt6 import QtWidgets, QtGui, QtCore
 from PyQt6.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject
-
 from core.batch_engine import BatchManager, BatchWorker, PreloadWorker
 from core.processor import process_perspective_crop, rotate_image
 from core.output_pdf_fmt import export_to_pdf
 from core.converter_engine import ProxyManager
+from core.output_fmt import export_image, export_th
 from image_canvas import ImageCanvas
 from ui.views.landing_view import LandingView
-from utils.logger import setup_logger
-from core.output_fmt import export_image, export_th
-from utils.fmt_config import config_manager
+from ui.views.converter_setup_view import DirectConvertView
+from ui.views.pdf_converter_view import PDFConverterView
 from ui.components.editor_toolbar import EditorToolbar
-from ui.views.batch_summary_view import BatchSummaryView
+from ui.components.neon_widgets import NeonProxyStyle
+from utils.logger import setup_logger
+from utils.pdf_th_config import config_manager
+from utils.asset_manager import assets
 
 # @ Created by SGV.dev
 
@@ -45,16 +47,17 @@ class PDFWorker(QRunnable):
 class MainWindow(QtWidgets.QMainWindow):
 	def __init__(self) -> None:
 		super().__init__()
-		self.setWindowTitle('HICutter - Historical Image Cutter by SGV.dev')
+		self.setWindowTitle('HICutter')
 
-		# Stacked widget: 0 = LandingView, 1 = ImageCanvas (editor), 2= BatchSummaryView
 		self.stack = QtWidgets.QStackedWidget()
 		self.landing = LandingView()
 		self.canvas = ImageCanvas()
-		self.summary_view = BatchSummaryView()
-		self.stack.addWidget(self.landing)
-		self.stack.addWidget(self.canvas)
-		self.stack.addWidget(self.summary_view)
+		self.converter = DirectConvertView()
+		self.pdf = PDFConverterView()
+		self.stack.addWidget(self.landing)			# Index: 0 = landing view
+		self.stack.addWidget(self.converter)		# Index: 1 = Converter view
+		self.stack.addWidget(self.canvas)			# Index: 2 = Image Canvas
+		self.stack.addWidget(self.pdf)				# Index: 3 = PDF Converter View
 		self.setCentralWidget(self.stack)
 		self.current_image_path: str | None = None
 
@@ -638,6 +641,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def main() -> None:
 	app = QtWidgets.QApplication(sys.argv)
+	base_style = QtWidgets.QStyleFactory.create("Fusion")
+	app.setStyle(NeonProxyStyle(base_style))
+	try:
+		with open("resources/theme.qss", "r", encoding="utf-8") as f:
+			app.setStyleSheet(f.read())
+	except FileNotFoundError:
+		pass
+	assets.init_graphic_resources()
+
 	mw = MainWindow()
 	mw.resize(1000, 700)
 	mw.showMaximized()

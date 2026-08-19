@@ -16,6 +16,10 @@ class NeonTreeView(QtWidgets.QTreeView):
     QTreeView personalizado que evita que Windows pinte fondos morados 
     en el área de las ramas/sangrías.
     """
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+
     def drawBranches(self, painter, rect, index):
         # ESCUDO: Nunca intentar dibujar un índice que la memoria C++ aún no haya validado.
         # Esto soluciona el 99% de los crasheos en el primer render.
@@ -122,3 +126,60 @@ class NeonProxyStyle(QtWidgets.QProxyStyle):
         
         # Para todo lo demás, dejamos que Qt dibuje normalmente
         super().drawPrimitive(element, option, painter, widget)
+class CustomSpinBox(QtWidgets.QSpinBox):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Ocultar los botones de flecha integrados
+        self.setButtonSymbols(QtWidgets.QSpinBox.ButtonSymbols.NoButtons)
+        # Cursor de texto (I-Beam) o puntero al pasar el mouse
+        self.setCursor(QtCore.Qt.CursorShape.IBeamCursor)
+        # Alineacion al centro
+        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+
+
+class CustomComboBox(QtWidgets.QComboBox):
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Maximum, QtWidgets.QSizePolicy.Policy.Fixed)
+
+    def paintEvent(self, event: QtGui.QPaintEvent):
+        painter = QtGui.QPainter(self)
+        opt = QtWidgets.QStyleOptionComboBox()
+        self.initStyleOption(opt)
+
+        # 1. Dibuja el marco, fondo y flecha nativos/QSS (vaciando el texto temporalmente)
+        current_text = opt.currentText
+        opt.currentText = ""
+        self.style().drawComplexControl(QtWidgets.QStyle.ComplexControl.CC_ComboBox, opt, painter, self)
+
+        # 2. Calcula el área interior del texto (descontando bordes y flecha)
+        text_rect = self.style().subControlRect(
+            QtWidgets.QStyle.ComplexControl.CC_ComboBox,
+            opt,
+            QtWidgets.QStyle.SubControl.SC_ComboBoxEditField,
+            self
+        )
+
+        # 3. Dibuja el texto seleccionado centrado horizontal y verticalmente
+        opt.currentText = current_text
+        self.style().drawItemText(
+            painter,
+            text_rect,
+            QtCore.Qt.AlignmentFlag.AlignCenter,
+            self.palette(),
+            self.isEnabled(),
+            opt.currentText
+        )
+
+class CustomCheckBox(QtWidgets.QCheckBox):
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+class CustomPushButton(QtWidgets.QPushButton):
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)

@@ -5,7 +5,7 @@ if __name__ == "__main__":
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 from utils.logger import setup_logger
 from utils.asset_manager import assets
-from utils.fmt_config import config_manager
+from utils.converter_config import config_manager
 from ui.components.neon_widgets import NeonProxyStyle
 
 logger = setup_logger(__name__)
@@ -274,7 +274,6 @@ class BatchRenameDialog(QtWidgets.QDialog):
 # ==========================================
 def load_global_stylesheet(app: QtWidgets.QApplication):
     """Lee el archivo QSS y lo inyecta a toda la aplicación."""
-    #TODO: Realizar el cambio en main para que toda mi app tenga este diseño
     try:
         with open("resources/theme.qss", "r", encoding="utf-8") as f:
             app.setStyleSheet(f.read())

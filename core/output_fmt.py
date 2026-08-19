@@ -2,7 +2,7 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
-from utils.fmt_config import config_manager
+from utils.pdf_th_config import config_manager
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)

@@ -5,7 +5,8 @@ if __name__ == "__main__":
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from PyQt6 import QtWidgets, QtCore, QtGui
-from ui.components.neon_widgets import HiddenFilesFilterProxyModel, NeonTreeView, NeonSelectionDelegate, NeonProxyStyle
+from ui.components.neon_widgets import NeonTreeView, NeonSelectionDelegate, NeonProxyStyle
+from ui.components.tree_view_components import LocalFilesSearcher, SandboxTreeView
 from ui.dialogs.converter_filter_dialog import FilterDialog
 from ui.dialogs.converter_config_dialog import ConfigDialog
 from ui.dialogs.multi_folder_dialog import MultiFolderDialog
@@ -15,15 +16,6 @@ from utils.asset_manager import assets
 from utils.icon_map import HICutterIcons
 
 logger = setup_logger(__name__)
-
-def load_global_stylesheet(app: QtWidgets.QApplication):
-    """Lee el archivo QSS y lo inyecta a toda la aplicación."""
-    #TODO: Realizar el cambio en main para que toda mi app tenga este diseño
-    try:
-        with open("resources/theme.qss", "r", encoding="utf-8") as f:
-            app.setStyleSheet(f.read())
-    except FileNotFoundError:
-        print("Advertencia: No se encontró theme.qss")
 
 class DirectConvertView(QtWidgets.QWidget):
     # Señales para comunicarse con main.py
@@ -50,6 +42,7 @@ class DirectConvertView(QtWidgets.QWidget):
         return_button.setProperty("estilo", "icono")
         return_button.setProperty("variante", "regresar")
         return_button.setFixedSize(30,20)
+        return_button.setToolTip("Atras")
         return_button.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         return_button.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         return_button.clicked.connect(self.request_cancel.emit)
@@ -78,49 +71,11 @@ class DirectConvertView(QtWidgets.QWidget):
         self.splitter.setHandleWidth(14)
 
         # --- PANEL IZQUIERDO: Explorador de Windows ---
-        left_frame = QtWidgets.QGroupBox()
-        left_layout = QtWidgets.QVBoxLayout(left_frame)
-        left_layout.setContentsMargins(0, 0, 10, 0) #<- Margen derecho para separar del splitter
-        
-        lbl_left = QtWidgets.QLabel("ARCHIVOS LOCALES")
-        lbl_left.setProperty("estilo", "splitter_title")
-
-        self.os_model = QtGui.QFileSystemModel()
-        self.os_model.setRootPath(QtCore.QDir.rootPath())
-        self.os_model.setFilter(QtCore.QDir.Filter.NoDotAndDotDot | QtCore.QDir.Filter.AllDirs | QtCore.QDir.Filter.Files | QtCore.QDir.Filter.NoDot)
-
-        # Filtro visual para que el usuario solo vea carpetas y fotos
-        self.os_model.setNameFilters(["*.jpg", "*.jpeg", "*.png", "*.tif", "*.tiff", "*.cr2"])
-        self.os_model.setNameFilterDisables(False) # Oculta lo que no coincida
-
-        self.proxy_model = HiddenFilesFilterProxyModel()
-        self.proxy_model.setSourceModel(self.os_model)
-        
-        self.tree_os = NeonTreeView()
-        self.tree_os.setModel(self.proxy_model)
-        root_index = self.os_model.index(QtCore.QDir.homePath())
-        self.tree_os.setRootIndex(self.proxy_model.mapFromSource(root_index))
-        self.tree_os.setColumnHidden(1, True) # Ocultar tamaño
-        self.tree_os.setColumnHidden(2, True) # Ocultar tipo
-        self.tree_os.setColumnHidden(3, True) # Ocultar fecha
-        self.tree_os.setAnimated(True)
-        self.tree_os.setHeaderHidden(True)
-        self.tree_os.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection) # <-Seleccion tipo "Ruber band"
-        self.tree_os.setDragEnabled(True)
-        self.tree_os.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.DragOnly) #<- Poder arrastrar objetos
-        self.tree_os.setItemDelegate(NeonSelectionDelegate(self.tree_os))
-
-        self.btn_add_element_to_sandbox = QtWidgets.QPushButton("→ AÑADIR AL ORGANIZADOR")
-        self.btn_add_element_to_sandbox.setStyleSheet("QPushButton { padding: 6px;}")
-        self.btn_add_element_to_sandbox.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
-        self.btn_add_element_to_sandbox.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-
-        # Armado del layout izquierdo
-        left_layout.addWidget(lbl_left)
-        left_layout.addSpacing(10)
-        left_layout.addWidget(self.tree_os, stretch=1)
-        left_layout.addWidget(self.btn_add_element_to_sandbox)
-        left_layout.addSpacing(5)
+        self.local_searcher = LocalFilesSearcher()
+        # Sobreescribimos el texto del botón dinámicamente 
+        self.local_searcher.btn_add_element.setText("AÑADIR AL ORGANIZADOR")
+        # TODO
+        # self.local_searcher.btn_add_element.clicked.connect(funcion para añadir)
 
         # --- PANEL CENTRAL: Árbol del Sandbox ---
         center_frame = QtWidgets.QGroupBox()
@@ -192,16 +147,8 @@ class DirectConvertView(QtWidgets.QWidget):
         sandbox_header_layout.addWidget(self.btn_filter_tool)
         sandbox_header_layout.addWidget(self.btn_delete_virtual_element)
 
-        self.tree_sandbox = NeonTreeView()
-        self.tree_sandbox.setHeaderHidden(True)
-        self.tree_sandbox.setAnimated(True)
-        self.tree_sandbox.setMinimumWidth(250)
-        self.tree_sandbox.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection) # <-Seleccion tipo "Ruber band"
-        self.tree_sandbox.setDragEnabled(True)
-        self.tree_sandbox.setAcceptDrops(True)                                                       # <- Acepta los elementos que suelten aqui
-        self.tree_sandbox.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.DragDrop) # <- Solo acepta que suelten y arrastren archivos 
-        self.tree_sandbox.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)             #<- Solo mueve la carpeta, no genera copia
-        self.tree_sandbox.setItemDelegate(NeonSelectionDelegate(self.tree_sandbox))
+        # Creamos el sandbox desde el tree_view_components
+        self.tree_sandbox = SandboxTreeView()
 
         self.lbl_sandbox_info = QtWidgets.QLabel("Selecciona elementos para modificar")
         self.lbl_sandbox_info.setStyleSheet("color: #666; font-size: 11px; font-style: italic;")
@@ -243,7 +190,7 @@ class DirectConvertView(QtWidgets.QWidget):
         right_layout.addWidget(self.list_thumbnails, stretch=1)
 
         # Armado del splitter
-        self.splitter.addWidget(left_frame)
+        self.splitter.addWidget(self.local_searcher)
         self.splitter.addWidget(center_frame)
         self.splitter.addWidget(right_frame)
         # Ajustar proporciones del Splitter
@@ -288,6 +235,7 @@ class DirectConvertView(QtWidgets.QWidget):
         self.btn_convert.setProperty("estilo", "primario")
         self.btn_convert.setFixedSize(100, 32)
         self.btn_convert.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.btn_convert.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.btn_convert.clicked.connect(lambda: self.request_convert.emit({}))
 
         # Armado del bottom layout
@@ -297,6 +245,7 @@ class DirectConvertView(QtWidgets.QWidget):
         bottom_layout.addStretch(5)
         bottom_layout.addSpacing(15)
         bottom_layout.addWidget(self.btn_convert)
+        bottom_layout.addSpacing(15)
 
         """
                                                                 Armado global
@@ -359,7 +308,7 @@ class DirectConvertView(QtWidgets.QWidget):
         dialog = BatchRenameDialog(parent=self, items_to_rename=self.element_list)
 
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-                    #TODO Crear la conexcion entre el diccionario recibido y el renombrado de los elementos
+                    #TODO Crear la conexion entre el diccionario recibido y el renombrado de los elementos
                     logger.info("Valores guardados")
     
     def _delete_selected_element(self):
@@ -392,6 +341,14 @@ class DirectConvertView(QtWidgets.QWidget):
 # ENTORNO AISLADO (MOCK ENVIRONMENT)
 # ==========================================
 if __name__ == "__main__":
+    def load_global_stylesheet(app: QtWidgets.QApplication):
+        """Lee el archivo QSS y lo inyecta a toda la aplicación."""
+        try:
+            with open("resources/theme.qss", "r", encoding="utf-8") as f:
+                app.setStyleSheet(f.read())
+        except FileNotFoundError:
+            print("Advertencia: No se encontró theme.qss")
+            
     app = QtWidgets.QApplication(sys.argv)
     base_style = QtWidgets.QStyleFactory.create("Fusion")
 

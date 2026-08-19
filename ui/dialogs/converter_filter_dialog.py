@@ -353,7 +353,6 @@ class FilterDialog(QtWidgets.QDialog):
 # ==========================================
 def load_global_stylesheet(app: QtWidgets.QApplication):
     """Lee el archivo QSS y lo inyecta a toda la aplicación."""
-    #TODO: Realizar el cambio en main para que toda mi app tenga este diseño
     try:
         with open("resources/theme.qss", "r", encoding="utf-8") as f:
             app.setStyleSheet(f.read())
