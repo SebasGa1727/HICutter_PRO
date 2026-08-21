@@ -138,9 +138,9 @@ class ImageCanvas(QtWidgets.QWidget):
         
         # Color space para el HUD
         if self.cv_image.ndim == 3 and self.cv_image.shape[2] == 3:
-            self.hud_colorspace = "BGR (Color Estándar)"
+            self.hud_colorspace = "RGB (Color Estándar)"
         elif self.cv_image.ndim == 3 and self.cv_image.shape[2] == 4:
-            self.hud_colorspace = "BGRA (Color con Transparencia)"
+            self.hud_colorspace = "RGBA (Color con Transparencia)"
         elif self.cv_image.ndim == 2:
             self.hud_colorspace = "Grayscale (Escala de Grises)"
         else:

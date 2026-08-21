@@ -20,33 +20,7 @@ class EditorToolbar(QtWidgets.QToolBar):
         self.KEY_RESTART_POINTS = "esc"
         self.KEY_RIGHT_ROTATE = "a"
 
-        # llamamos a los metodos privados que brindan la estrucutra y personalizacion
-        self._apply_style()
         self._setup_actions()
-
-    def _apply_style(self) -> None:
-        '''Aplica el diseño "css" a los botones'''
-        #Inyectamos la hoja de estilos al componente padre
-        self.setStyleSheet('''
-        QToolButton {
-            border: 1px solid #0E3468;
-            background: transparent;
-            padding: 4px 8px;
-            border-radius: 4px;         
-        }
-        QToolButton:hover {
-            background: rgba(37, 37, 37, 0.06);               
-        }
-        QToolButton#btnCancelar {
-            background-color: #D32F2F; 
-            color: white;
-            border: 1px solid #B71C1C;
-            font-weight: bold;
-        }
-        QToolButton#btnCancelar:hover {
-            background-color: #F44336; /* Rojo más claro al pasar el mouse */
-        }
-        ''')
     
     def _setup_actions(self):
         '''Crea las acciones, brinda la estructura y 
@@ -93,7 +67,7 @@ class EditorToolbar(QtWidgets.QToolBar):
         #Le inyectamos el ID para que obtenga el formato css definido en la parte superior
         cancel_button_widget = self.widgetForAction(self.cancel_action)
         if cancel_button_widget:
-            cancel_button_widget.setObjectName("btnCancelar") #Aqui le asignamos el ID en la parte superior
+            cancel_button_widget.setProperty("estilo", "cancelar") #Aqui le asignamos el ID en la parte superior
 
     def set_editor_active(self, is_active: bool) -> None:
         '''Metodo para encender/apagar la visalizacion y funcionalidad de la toolbar'''

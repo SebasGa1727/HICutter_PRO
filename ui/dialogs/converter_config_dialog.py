@@ -102,6 +102,6 @@ class ConfigDialog(QtWidgets.QDialog):
         """Si la ventana se abre y ya había configuración previa, cargamos los datos."""
         #TODO
 
-    def get_export_settings(self) -> dict:
+    def save_export_settings(self) -> dict:
         """Empaqueta y devuelve la configuración final para ser usada por el motor."""
         #TODO

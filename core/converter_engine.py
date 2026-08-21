@@ -226,10 +226,23 @@ class ProxyManager(QtCore.QObject):
             return
 
         all_files = []
-        for file in os.listdir(input_dir):
-            if os.path.splitext(file)[1].lower() in valid_exts:
-                all_files.append(os.path.join(input_dir, file))
-                
+        
+        from utils.batch_config import config_manager
+        include_subfolders = config_manager.get("export_config", "check_subfolders")
+
+        if include_subfolders:
+            # Escaneo profundo: penetra en todas las subcarpetas
+            for root, _, files in os.walk(input_dir):
+                for file in files:
+                    if os.path.splitext(file)[1].lower() in valid_exts:
+                        all_files.append(os.path.join(root, file))
+        else:
+            # Escaneo superficial: solo la carpeta principal
+            for file in os.listdir(input_dir):
+                full_path = os.path.join(input_dir, file)
+                if os.path.isfile(full_path) and os.path.splitext(file)[1].lower() in valid_exts:
+                    all_files.append(full_path)
+                    
         self._total_files = len(all_files)
         if self._total_files == 0:
             self.finished.emit([]) 
@@ -259,7 +272,7 @@ class ProxyManager(QtCore.QObject):
             self.finished.emit(self._final_list)
             return
         
-        self.progress.emit(0, self._workers_dispatched, "Analizando imagenes...")
+        self.progress.emit(0, self._workers_dispatched, "Analizando imágenes...")
 
     def _on_worker_finished(self, index: int, proxy_path: str):
         self._final_list[index] = proxy_path

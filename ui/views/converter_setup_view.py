@@ -9,8 +9,8 @@ from ui.components.neon_widgets import NeonTreeView, NeonSelectionDelegate, Neon
 from ui.components.tree_view_components import LocalFilesSearcher, SandboxTreeView
 from ui.dialogs.converter_filter_dialog import FilterDialog
 from ui.dialogs.converter_config_dialog import ConfigDialog
-from ui.dialogs.multi_folder_dialog import MultiFolderDialog
-from ui.dialogs.batch_rename_dialog import BatchRenameDialog
+from ui.dialogs.converter_multi_folder_dialog import MultiFolderDialog
+from ui.dialogs.converter_rename_dialog import BatchRenameDialog
 from utils.logger import setup_logger
 from utils.asset_manager import assets
 from utils.icon_map import HICutterIcons
@@ -205,6 +205,8 @@ class DirectConvertView(QtWidgets.QWidget):
 
         # Seccion de "ruta" de SALIDA y boton "explorar"
         out_dir_layout = QtWidgets.QHBoxLayout()
+        out_dir_layout.setSpacing(0)
+
         self.txt_out_dir = QtWidgets.QLineEdit()
         self.txt_out_dir.setPlaceholderText("Carpeta de salida...")
         self.txt_out_dir.setReadOnly(True)
@@ -219,7 +221,6 @@ class DirectConvertView(QtWidgets.QWidget):
         self.btn_explore_right.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         
         out_dir_layout.addWidget(self.txt_out_dir, stretch=1)
-        out_dir_layout.setSpacing(0)
         out_dir_layout.addWidget(self.btn_explore_right)
         out_dir_layout.addSpacing(0)
         

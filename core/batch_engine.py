@@ -1,11 +1,12 @@
 import gc
+import os
 import cv2
 import numpy as np
 from PyQt6 import QtCore, QtGui
 from core.processor import process_perspective_crop
 from core.output_fmt import export_image
 from utils.logger import setup_logger
-from utils.pdf_th_config import config_manager
+from utils.batch_config import config_manager
 try:
     from core.AI_exporter import export_yolo_data
     AI_EXPORTER_AVAILABLE = True
@@ -44,18 +45,35 @@ class BatchWorker(QtCore.QRunnable):
     def run(self):
         """Este método se ejecuta en un núcleo distinto del procesador"""
         try:
-            # 1. Hacemos el recorte matemático pesado
+            # Hacemos el recorte matemático pesado
             warped = process_perspective_crop(self.cv_image, self.points)
             
-            # 2. Guardamos en disco duro (I/O intensivo)
-            # Nota: output_fmt ya sabe dónde guardar gracias a que actualizamos el JSON en el diálogo
-            out_path = export_image(warped, self.file_name, self.parent_folder_name)
+            # Elegimos donde guardar segun la configuracion previa del usuario
+            save_mode = config_manager.get("save_config", "save_mode")
+            route = config_manager.get("save_config", "route")
+            sufix_config = config_manager.get("save_config", "sufix")
+            
+            orig_dir = os.path.dirname(self.file_name)
+            base_name = os.path.basename(self.file_name)
+
+            if save_mode == 0:   # 0: Sobreescribir en origen
+                out_dir = orig_dir
+                sufix = ""
+            elif save_mode == 1: # 1: Sufijo en origen
+                out_dir = orig_dir
+                sufix = sufix_config
+            else:                # 2: Nueva Ruta
+                out_dir = route
+                sufix = ""
+
+            # Guardamos en disco delegando a export_image
+            out_path = export_image(warped, out_dir, base_name, sufix)
             
             # Plugin de IA
-            if AI_EXPORTER_AVAILABLE and config_manager.get("ai_export", "yolo_enabled"):
+            if AI_EXPORTER_AVAILABLE:
                 try:
                     # Le pasamos la imagen original (antes del recorte), los 4 puntos y el nombre
-                    export_yolo_data(self.cv_image, self.points, self.file_name, self.parent_folder_name)
+                    export_yolo_data(self.cv_image, self.points, self.file_name, class_id=0)
                 except Exception:
                     logger.error(f"Error interno en AI_exporter procesando {self.file_name}", exc_info=True)
             
@@ -64,13 +82,11 @@ class BatchWorker(QtCore.QRunnable):
 
             del warped
             del self.cv_image
-
             gc.collect()
             
         except Exception as e:
             logger.error(f"Error en BatchWorker procesando {self.file_name}", exc_info=True)
             self.signals.error.emit(self.file_name, str(e))
-
 
 class BatchManager(QtCore.QObject):
     # EL BatchManager = Maneja la lista de memoria RAM

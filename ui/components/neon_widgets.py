@@ -126,6 +126,7 @@ class NeonProxyStyle(QtWidgets.QProxyStyle):
         
         # Para todo lo demás, dejamos que Qt dibuje normalmente
         super().drawPrimitive(element, option, painter, widget)
+
 class CustomSpinBox(QtWidgets.QSpinBox):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -135,7 +136,6 @@ class CustomSpinBox(QtWidgets.QSpinBox):
         self.setCursor(QtCore.Qt.CursorShape.IBeamCursor)
         # Alineacion al centro
         self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-
 
 class CustomComboBox(QtWidgets.QComboBox):
     def __init__(self, parent = None):

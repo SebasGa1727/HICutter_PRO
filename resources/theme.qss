@@ -207,7 +207,7 @@ QToolTip {
 
 /* ------------ 7. SISTEMA DE BOTONES (Clases Semánticas) ---------- */
 
-QPushButton { 
+QPushButton, QToolButton { 
     background-color: transparent; 
     border: 1px solid rgba(12, 140, 233, 0.5); 
     border-radius: 6px; 
@@ -217,12 +217,12 @@ QPushButton {
     font-size: 9pt;
     outline: none;
 }
-QPushButton:hover, QPushButton:focus { 
+QPushButton:hover, QPushButton:focus, QToolButton:hover, QToolButton:focus { 
     background-color: rgba(12, 140, 233, 0.3); 
     border: 1px solid rgba(12, 140, 233, 0.5);
     color: #EEEEEE;
 }
-QPushButton:pressed { 
+QPushButton:pressed, QToolButton:pressed { 
     background-color: rgba(12, 140, 233, 0.2); 
     border: 1px solid rgba(12, 140, 233, 0.4); 
 }
@@ -247,16 +247,16 @@ QPushButton[estilo="primario"]:disabled {
     border: 1px solid rgba(12, 140, 233, 0.5);
 }
 
-QPushButton[estilo="cancelar"] { 
+QPushButton[estilo="cancelar"], QToolButton[estilo="cancelar"] { 
     background-color: transparent; 
     color: #CCCCCC; 
     border: 1px solid #F44336;
 }
-QPushButton[estilo="cancelar"]:hover, QPushButton[estilo="cancelar"]:focus { 
+QPushButton[estilo="cancelar"]:hover, QPushButton[estilo="cancelar"]:focus, QToolButton[estilo="cancelar"]:hover, QToolButton[estilo="cancelar"]:focus { 
     background-color: rgba(244, 67, 54, 0.3); 
     color: #EEEEEE;
 }
-QPushButton[estilo="cancelar"]:pressed { 
+QPushButton[estilo="cancelar"]:pressed, QToolButton[estilo="cancelar"]:pressed { 
     background-color: rgba(244, 67, 54, 0.2); 
     color: #CCCCCC;
 }

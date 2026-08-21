@@ -5,30 +5,22 @@ from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-class ConverterConfigManager:
+class IndividualConfigManager:
     """Gestor de configuración exclusivo para la vista de Recorte (Converter Setup)."""
     
-    CONFIG_FILE = "setup_settings.json"
+    CONFIG_FILE = "setup_batch_settings.json"
 
     DEFAULT_CONFIG = {
-        "export_image": {
-            "format": "jpg",        # Index 0: jpg, 1: png
-            "quality": 80,
-            "dpi": 96,
-            "size": 3000,
-            "size_side": 0,         # Index 0: Lado corto, 1: Largo, 2: Cuadrado
-        },
-        "ai_export": {
-            "yolo_enabled": False
-        },
         "paths": {
-            "use_preset_dir": False,
-            "pre_set_output_dir": "",
-            "last_dir": "",
-            "input_last_dir": ""
-        },
-        "multi_folder_dialog": { "1": "", "2": "", "3": "" },
-        "batch_rename_dialog": { "1": "", "2": "", "3": "" }
+            "last_output_dir": "",
+       },
+        "export_config": {
+            "quality": 80,
+            "dpi": 72,                 
+            "format": 0,                # Index 0: jpg, 1: png
+            "size": 1000,
+            "side": 0                   # Index 0: Lado largo, 1: Lado corto, 2: Cuadrado
+        }
     }
 
     def __init__(self) -> None:
@@ -69,4 +61,4 @@ class ConverterConfigManager:
         self._save_to_disk(self.config)
 
 # Instancia global
-config_manager = ConverterConfigManager()
+config_manager = IndividualConfigManager()

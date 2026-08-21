@@ -332,7 +332,6 @@ class PDFConverterView(QtWidgets.QWidget):
         self.setup_footer()
 
         self._load_current_settings()
-        self._setup_mock_data()
 
     def setup_header(self):
         header_layout = QtWidgets.QHBoxLayout()
@@ -507,40 +506,3 @@ class PDFConverterView(QtWidgets.QWidget):
             self.ind_config.save_settings(config_manager)
 
         self.request_convert.emit()
-
-    def _setup_mock_data(self):
-        model_tree = QtGui.QStandardItemModel()
-        root_item = QtGui.QStandardItem("📁 Lote_Principal_Acervo")
-        sub1 = QtGui.QStandardItem("📁 Carpeta_01")
-        sub2 = QtGui.QStandardItem("📁 Carpeta_02")
-        root_item.appendRow(sub1)
-        root_item.appendRow(sub2)
-        model_tree.appendRow(root_item)
-        self.tree_sandbox.setModel(model_tree)
-        self.tree_sandbox.expandAll()
-
-        model_list = QtGui.QStandardItemModel()
-        model_list.appendRow(QtGui.QStandardItem("📄 Documento_1.jpg"))
-        model_list.appendRow(QtGui.QStandardItem("📄 Escaneo_02_modificado.png"))
-        self.list_sandbox.setModel(model_list)
-
-# ==============================================================================
-if __name__ == "__main__":
-    def load_global_stylesheet(app: QtWidgets.QApplication):
-        try:
-            with open("resources/theme.qss", "r", encoding="utf-8") as f:
-                app.setStyleSheet(f.read())
-        except FileNotFoundError:
-            pass
-            
-    app = QtWidgets.QApplication(sys.argv)
-    base_style = QtWidgets.QStyleFactory.create("Fusion")
-    app.setStyle(NeonProxyStyle(base_style))
-    load_global_stylesheet(app)
-    assets.init_graphic_resources()
-
-    window = PDFConverterView()
-    window.resize(1200, 750)
-    window.setWindowTitle("HICutter PRO - Convertidor PDF")
-    window.showMaximized()
-    sys.exit(app.exec())

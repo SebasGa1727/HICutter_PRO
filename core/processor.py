@@ -1,8 +1,3 @@
-"""Processing helpers for HICutter.
-
-This module contains the image processing logic separated from the UI.
-"""
-
 import numpy as np
 import cv2
 from utils.logger import setup_logger
@@ -10,19 +5,7 @@ from utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 def process_perspective_crop(cv_image: np.ndarray, points: np.ndarray) -> np.ndarray:
-    """Compute perspective transform from 4 points and return the warped image.
-
-    Args:
-        cv_image: Source OpenCV image (BGR numpy array).
-        points: Array-like with shape (4,2) of image coordinates (float32).
-
-    Returns:
-        The warped (cropped) image as a numpy.ndarray.
-
-    Raises:
-        ValueError: If `points` does not contain 4 points or computed dimensions
-            are invalid (non-positive).
-    """
+    """ Realiza el recorte de los puntos recibidos, y retorna la imagen recortada"""
     pts = np.array(points, dtype=np.float32)
     if pts.shape[0] != 4:
         raise ValueError("Se requieren 4 puntos para el recorte de perspectiva")
@@ -54,11 +37,7 @@ def process_perspective_crop(cv_image: np.ndarray, points: np.ndarray) -> np.nda
 
 
 def rotate_image(cv_image: np.ndarray, direction_rotate: int) -> np.ndarray:
-    """Return a rotated copy of `cv_image` using OpenCV rotate codes.
-
-    This is a pure function placed in the core so UI components do not
-    perform image transformations directly.
-    """
+    """ Recibe la orientacion de reotacion y rota la imagen"""
     try:
         match direction_rotate:
             case "derecha":
