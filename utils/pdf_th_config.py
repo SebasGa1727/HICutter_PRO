@@ -29,7 +29,7 @@ class PDFConfigManager:
             "dpi": 72,
             "quality": 60,
             "size": 500,
-            "size_side": 0,         # Index 0: Lado corto, 1: Largo, 2: Cuadrado
+            "size_side": 0,         # Index 0: Lado largo, 1: Lado corto, 2: Cuadrado
             "save_route": 0         # Index 0: Misma que PDF, 1: Raíz
         }
     }

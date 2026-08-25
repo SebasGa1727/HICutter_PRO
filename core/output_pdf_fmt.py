@@ -2,62 +2,62 @@ import os
 import io
 import img2pdf
 from PIL import Image
-from utils.pdf_th_config import config_manager
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-def _img_stream_generator(image_paths: list[str], quality: int, dpi: int):
-    '''Generador de flujo continuo'''
+def _img_stream_generator(image_paths: list[str], quality: int, dpi: int, average_width: bool):
+    '''Generador de flujo continuo de bajo consumo de RAM con normalización de anchura'''
+    
+    avg_w = None
+    if average_width and image_paths:
+        # Fast Pass: Leer anchos rápidamente sin cargar las matrices completas
+        widths = []
+        for p in image_paths:
+            try:
+                with Image.open(p) as img:
+                    widths.append(img.width)
+            except Exception:
+                pass
+        if widths:
+            avg_w = int(sum(widths) / len(widths))
+            logger.info(f"Ancho promedio calculado: {avg_w}px")
+
     for path in image_paths:
         try:
-            with Image.open(path) as img: #<- Abrimos la imagen individualmente
-                #Convertimos a RGB por si tiene canal alpha o BGR
+            with Image.open(path) as img: 
                 if img.mode in ("RGBA", "P"):
                     img = img.convert("RGB")
-                #preparamos el espacio de memoria exclusivo para esa imagen
+                
+                # Normalización de ancho si el usuario lo solicitó
+                if avg_w and img.width != avg_w:
+                    ratio = avg_w / float(img.width)
+                    new_h = int(round(img.height * ratio))
+                    img = img.resize((avg_w, new_h), Image.Resampling.LANCZOS)
+                
                 img_byte_arr = io.BytesIO()
-                #Guardamos la imagen en ese espacio de memoria con la calidad y DPI previamente configurados
-                img.save(img_byte_arr, format="JPEG", quality = quality, dpi = (dpi, dpi))
-
-                #LE damos los  puros bytes para que img2pdf inyecte al disco duro
+                img.save(img_byte_arr, format="JPEG", quality=quality, dpi=(dpi, dpi))
+                
                 yield img_byte_arr.getvalue()
-        #Al estar en un bucle, la memoria borra los datos de esta imagen, liberando memoria sin saturarla
         except Exception as e:
             logger.error(f"Error al procesar la imagen {path} en PDF: {e}", exc_info=True)
 
-def export_to_pdf(ordered_paths: list[str], output_filename: str) -> str:
-    '''Toma la lista de imagenes, las compila y crea el pdf utilizando I/O Streming'''
+def export_to_pdf(ordered_paths: list[str], out_path: str, quality: int, dpi: int, average_width: bool) -> str:
+    '''Toma la lista de imagenes, las compila y crea el pdf utilizando I/O Streaming directo a disco'''
     try:
-        dpi = int(config_manager.get("export_pdf", "dpi")) or 150
-        quality = int(config_manager.get("export_pdf", "quality")) or 75
-        base_dir = config_manager.get("paths", "last_dir")
-        
-        if not base_dir:
-            base_dir = os.path.join(os.path.expanduser("~"), "Documents", "HICutter_Exports")
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
-        if output_filename:
-            base_dir = os.path.join(base_dir, output_filename)
-
-        os.makedirs(base_dir, exist_ok=True)
-
-        out_path = os.path.join(base_dir, f"{output_filename}.pdf")
-        #Evaluamos el generador en una lista
-        compressed_images = list(_img_stream_generator(ordered_paths, quality, dpi))
-        #Medida de seguridad y debuger
+        compressed_images = list(_img_stream_generator(ordered_paths, quality, dpi, average_width))
         if not compressed_images:
             raise ValueError("No se pudo procesar ninguna imagen a PDF")
 
-        # ABRIMOS EL CANAL DIRECTO AL DISCO DURO (Modo wb = Write Binary)
-        # Esto crea el archivo PDF vacío.
-        logger.info(f"Iniciando escritura de PDF")
+        logger.info(f"Iniciando escritura de PDF en: {out_path}")
         with open(out_path, "wb") as pdf_file:
-            #img2pdf procesa el generador e inyecta directamente al disco.
             pdf_bytes = img2pdf.convert(compressed_images)
             pdf_file.write(pdf_bytes)
 
-        logger.info(f"PDF Generado exitosamente con: {len(ordered_paths)} paginas")
         return out_path
+        
     except Exception as e:
-        logger.error("Error critico al exportar PDF", exc_info=True)
+        logger.error(f"Error crítico al exportar PDF: {out_path}", exc_info=True)
         raise e

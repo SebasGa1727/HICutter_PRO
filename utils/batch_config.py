@@ -17,7 +17,7 @@ class BatchConfigManager:
             "quality": 80,
             "dpi": 96,
             "size": 3000,
-            "size_side": 0,                 # Index 0: Lado corto, 1: Lado largo, 2: Cuadrado
+            "size_side": 0,                 # Index 0: Lado largo, 1: Lado corto, 2: Cuadrado
         },
         "save_config": {
             "last_input_route": "",

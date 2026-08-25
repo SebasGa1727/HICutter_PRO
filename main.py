@@ -3,18 +3,22 @@ import cv2
 import numpy as np
 import os
 import gc
+import time
 from enum import IntEnum
 from PyQt6 import QtWidgets, QtGui, QtCore
-from PyQt6.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject
+from PyQt6.QtCore import QThreadPool
 from core.batch_engine import BatchManager, BatchWorker, PreloadWorker
 from core.processor import process_perspective_crop, rotate_image
 from core.converter_engine import ProxyManager
 from core.output_fmt import export_image
 from core.AI_exporter import split_dataset_train_val
+from core.ai_batch_mode import AIBatchWorker, AIFastCropWorker
 from image_canvas import ImageCanvas
 from ui.views.landing_view import LandingView
 from ui.views.converter_setup_view import DirectConvertView
 from ui.views.pdf_converter_view import PDFConverterView
+from ui.views.ai_batch_view import AIBatchProcessView
+from ui.dialogs.ai_resume_dialog import AIResumeDialog
 from ui.components.editor_toolbar import EditorToolbar
 from ui.components.neon_widgets import NeonProxyStyle
 from utils.logger import setup_logger
@@ -33,7 +37,7 @@ class ViewIndex(IntEnum):
     CONVERTER = 1
     CANVAS = 2
     PDF_CREATOR = 3
-    MODO_IA = 4 # Para futura vista
+    MODO_IA = 4 
 
 class MainWindow(QtWidgets.QMainWindow):
 	def __init__(self) -> None:
@@ -45,10 +49,12 @@ class MainWindow(QtWidgets.QMainWindow):
 		self.canvas = ImageCanvas()
 		self.converter = DirectConvertView()
 		self.pdf = PDFConverterView()
+		self.ai_view = AIBatchProcessView()
 		self.stack.insertWidget(ViewIndex.LANDING, self.landing)
 		self.stack.insertWidget(ViewIndex.CONVERTER, self.converter)
 		self.stack.insertWidget(ViewIndex.CANVAS, self.canvas)
 		self.stack.insertWidget(ViewIndex.PDF_CREATOR, self.pdf)
+		self.stack.insertWidget(ViewIndex.MODO_IA, self.ai_view)
 		self.setCentralWidget(self.stack)
 		self.current_image_path: str | None = None
 
@@ -68,6 +74,12 @@ class MainWindow(QtWidgets.QMainWindow):
 		#Procesamiento por lote implementado desde Batch_engine
 		self.is_batch_mode: bool = False
 		self.batch_manager = BatchManager()
+		# Banderas de modo lote con IA
+		self._current_workflow = None  # Puede ser "manual_batch" o "ai_batch"
+		self.is_ai_mode = False
+		self.is_ai_paused = False
+		self.is_ai_cancelled = False
+		self.ai_start_time = 0.0
 		#Gestores de hilos para precesamiento asincrono y lectura de imagen asincrona en 2 vias
 		self.cpu_pool = QThreadPool()
 		# Pool para lectura de disco, limitado a solo 1 nucleo
@@ -118,13 +130,15 @@ class MainWindow(QtWidgets.QMainWindow):
 		self.landing.requestCreatePDF.connect(lambda: self._navigate_to(ViewIndex.PDF_CREATOR))
 		self.landing.requestLoadImage.connect(self._handle_request_load_image)
 		self.landing.requestLoadBatch.connect(self._start_batch_workflow)
-		# self.landing.requestLoadAI.connect(self._start_ai_workflow)  Proximo llamado para la vista de IA
+		self.landing.requestLoadAI.connect(self._start_ai_workflow)
 
         # --- Desde las vistas de Trabajo (Atrás / Cancelar) ---
 		self.converter.request_cancel.connect(self._navigate_home)
 		self.pdf.request_cancel.connect(self._navigate_home)
 		
-		#TODO en Paso 2: Conectar request_convert de converter y pdf a sus respectivas funciones de negocio
+		# --- Desde la vista IA ---
+		self.ai_view.request_cancel.connect(lambda: self.cancel_operation(prompt_user=True))
+		self.ai_view.request_pause_resume.connect(self._on_ai_pause_toggled)
 
 		# Actualizar estado del toolbar de forma inteligente
 		self.stack.currentChanged.connect(self._on_view_changed)
@@ -138,7 +152,7 @@ class MainWindow(QtWidgets.QMainWindow):
 		Lógica inteligente de retorno (Mejora de UX).
 		Si estamos procesando un lote, pedimos confirmación. Si la vista está "limpia", regresa sin molestar.
 		"""
-		if self.is_batch_mode or getattr(self, "_is_preloading", False):
+		if self.is_batch_mode or getattr(self, "_is_preloading", False) or self.is_ai_mode:
 			# Si hay trabajo crítico, usamos la función pesada original
 			self.cancel_operation(prompt_user=True)
 		else:
@@ -173,14 +187,21 @@ class MainWindow(QtWidgets.QMainWindow):
 			self.proxy_wait_dialog.deleteLater()
 			self.proxy_wait_dialog = None
 		
-		#Pasamos la lista limpia de puros jpg
-		if self.batch_manager.set_files(final_list):
-			self.is_batch_mode = True
-			logger.info(f"Lote iniciado: {len(self.batch_manager.image_files)} fotos en cola")
-			self._load_next_batch_image(force_sync= True)
-		else:
+		# Limpiamos la lista de nulos
+		clean_list = [f for f in final_list if f]
+		if not clean_list:
 			self.is_batch_mode = False
 			QtWidgets.QMessageBox.warning(self, "Aviso", "No se encontraron imágenes válidas en la carpeta.")
+			return
+
+		# Switch de enrutamiento basado en _current_workflow
+		if self._current_workflow == "ai_batch":
+			self._start_ai_processing(clean_list)
+		else:
+			if self.batch_manager.set_files(clean_list):
+				self.is_batch_mode = True
+				logger.info(f"Lote iniciado: {len(self.batch_manager.image_files)} fotos en cola")
+				self._load_next_batch_image(force_sync= True)
 
 	def _on_proxy_error(self, err_msg: str):
 		'''Error de procesamiento de proxys'''
@@ -299,12 +320,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
 	# Metodos para trabajo asincrono del modo lote
 	def _start_batch_workflow(self):
+		self._initialize_workflow("manual_batch")
+
+	def _start_ai_workflow(self):
+		self._initialize_workflow("ai_batch")
+
+	def _initialize_workflow(self, mode: str):
+		"""Unifica el diálogo de Setup y el Proxy para cualquier modo de lote"""
+		self._current_workflow = mode
 		from ui.dialogs.batch_setup_dialog import BatchSetupDialog
 		from utils.batch_config import config_manager
+		
 		dialog = BatchSetupDialog(self)
 
 		if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-			# El diálogo ya guardó todo. Solo extraemos la ruta de origen para el Proxy
 			carpeta_entrada = config_manager.get("save_config", "last_input_route")
 			self.parent_folder_name = os.path.basename(os.path.normpath(carpeta_entrada))
 
@@ -316,8 +345,170 @@ class MainWindow(QtWidgets.QMainWindow):
 			self.proxy_wait_dialog.canceled.connect(self._cancel_proxies)
 			self.proxy_wait_dialog.show()
 
-			# Mandamos al orquestador a escanear y generar proxies de ser necesario
+			# Manda a llamar al generador de proxyes
 			self.proxy_manager.process_directory(carpeta_entrada)
+
+	# Motor de IA
+	def _start_ai_processing(self, image_list: list[str]):
+		"""Instancia la vista y el Worker de IA tras el filtro del ProxyManager"""
+		self.is_ai_mode = True
+		self.is_ai_paused = False
+		self.is_ai_cancelled = False
+		self.ai_start_time = time.perf_counter()
+		
+		# Resetear la UI de IA
+		self.ai_view.update_progress(0, len(image_list))
+		self.ai_view.update_counters(0, 0)
+		self.ai_view.log_terminal.clear()
+		self.ai_view.log_message("Inicializando procesamiento de IA")
+		
+		self._navigate_to(ViewIndex.MODO_IA)
+		
+		# Instanciar el Worker inyectando las lambdas de evaluación (Seguridad en Memoria)
+		ai_worker = AIBatchWorker(
+			image_list=image_list,
+			check_cancel_func=lambda: self.is_ai_cancelled,
+			check_pause_func=lambda: self.is_ai_paused
+		)
+		
+		# Conectar señales del hilo a los métodos de actualización
+		ai_worker.signals.progress.connect(self._on_ai_progress)
+		ai_worker.signals.log.connect(self.ai_view.log_message)
+		ai_worker.signals.finished.connect(self._on_ai_finished)
+		ai_worker.signals.error.connect(self._on_ai_error)
+		
+		# Despachar al Pool
+		self.cpu_pool.start(ai_worker)
+
+	def _on_ai_pause_toggled(self, is_paused: bool):
+		"""Recibe el estado desde el toggle de la vista y actualiza la bandera de Main"""
+		self.is_ai_paused = is_paused
+
+	def _on_ai_progress(self, current: int, total: int, success: int, review: int, filename: str):
+		"""Actualiza HUD y calcula ETA en tiempo real"""
+		self.ai_view.update_progress(current, total)
+		self.ai_view.update_counters(success, review)
+		self.ai_view.update_current_file(filename)
+		
+		elapsed = time.perf_counter() - self.ai_start_time
+		avg_time = elapsed / current if current > 0 else 0
+		rem_items = total - current
+		eta_secs = avg_time * rem_items
+		
+		def fmt_time(s):
+			if s > 60: return f"{int(s//60)}m {int(s%60)}s"
+			return f"{int(s)}s"
+			
+		self.ai_view.update_times(fmt_time(elapsed), fmt_time(eta_secs))
+
+	def _on_ai_finished(self, success_list: list, review_list: list):
+		"""Flujo de Triaje Post-IA con validación humana interactiva."""
+		self.is_ai_mode = False
+		split_dataset_train_val(porcentaje_train=0.8)
+		
+		if self.is_ai_cancelled:
+			self._cleanup_thumbnails(review_list)
+			return
+		
+		# Caso ideal: Todas pasaron el porcentaje de validacion
+		if not review_list:
+			QtWidgets.QMessageBox.information(
+				self, 
+				"Resumen de IA", 
+				f"Procesamiento IA Finalizado.\n\n✔️ Éxitos (Guardados): {len(success_list)}\n⚠️ Para revisión: 0"
+			)
+			self._navigate_to(ViewIndex.LANDING)
+			return
+
+		# Levantar el Diálogo de Triaje para las reprobadas
+		dialog = AIResumeDialog(review_list, self)
+		result = dialog.exec()
+		
+		if result == QtWidgets.QDialog.DialogCode.Accepted:
+			accepted_for_ai, rejected_for_manual = dialog.get_triage_results()
+			self._cleanup_thumbnails(review_list) # Limpiar disco de miniaturas
+			
+			if accepted_for_ai:
+				self._run_ai_fast_crop(accepted_for_ai, rejected_for_manual, len(success_list))
+			else:
+				# Si no aceptó ninguna de la IA, saltamos directo al triaje manual
+				self._transition_post_triage(rejected_for_manual, len(success_list))
+		else:
+			# Si el usuario presiona la "X" o Escape, abortamos y limpiamos
+			self._cleanup_thumbnails(review_list)
+			self._navigate_to(ViewIndex.LANDING)
+
+	def _cleanup_thumbnails(self, review_list: list):
+		"""Utilidad para mantener el disco limpio de los archivos temporales generados por la IA."""
+		for item in review_list:
+			thumb = item.get("thumb_path")
+			if thumb and os.path.exists(thumb):
+				try:
+					os.remove(thumb)
+				except OSError:
+					logger.warning(f"No se pudo eliminar el archivo temporal: {thumb}")
+
+	def _run_ai_fast_crop(self, accepted_data: list, rejected_paths: list, previous_success_count: int):
+		"""Orquesta el recorte matemático rápido (100ms) en segundo plano para no congelar la UI."""
+		self.fast_crop_dialog = QtWidgets.QProgressDialog("Aplicando recortes confirmados...", None, 0, len(accepted_data), self)
+		self.fast_crop_dialog.setWindowTitle("Procesando")
+		self.fast_crop_dialog.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+		self.fast_crop_dialog.setCancelButton(None)
+		self.fast_crop_dialog.show()
+
+		self.fast_worker = AIFastCropWorker(accepted_data)
+		# Conectamos el progreso al QProgressDialog
+		self.fast_worker.signals.progress.connect(lambda c, t: self.fast_crop_dialog.setValue(c))
+		# Inyectamos por lambda las variables de arrastre para no perder los datos del triaje
+		self.fast_worker.signals.finished.connect(
+			lambda s_list, e_list: self._on_ai_fast_crop_finished(s_list, e_list, rejected_paths, previous_success_count)
+		)
+		self.cpu_pool.start(self.fast_worker)
+
+	def _on_ai_fast_crop_finished(self, fast_success: list, fast_error: list, rejected_paths: list, previous_success_count: int):
+		"""Callback al terminar el worker de recortes rápidos."""
+		if hasattr(self, 'fast_crop_dialog') and self.fast_crop_dialog:
+			self.fast_crop_dialog.close()
+
+		total_success = previous_success_count + len(fast_success)
+		# Si por algún motivo de memoria un fast crop falla, lo enviamos al lote manual por seguridad
+		combined_rejected = rejected_paths + fast_error 
+
+		self._transition_post_triage(combined_rejected, total_success)
+
+	def _transition_post_triage(self, rejected_paths: list, total_success: int):
+		"""Evalúa si transiciona al modo lote manual en el Canvas o si termina el flujo de IA volviendo a Landing."""
+		if not rejected_paths:
+			QtWidgets.QMessageBox.information(
+				self, 
+				"Resumen de IA", 
+				f"Procesamiento Finalizado exitosamente.\n\n✔️ Imágenes exportadas: {total_success}"
+			)
+			self._navigate_to(ViewIndex.LANDING)
+			return
+
+		msg = f"Procesamiento Finalizado.\n\n✔️ Imágenes exportadas: {total_success}\n⚠️ Imágenes para recorte manual: {len(rejected_paths)}"
+		
+		resp = QtWidgets.QMessageBox.question(
+			self, "Modo Lote Manual",
+			msg + "\n\n¿Deseas procesar las imágenes restantes manualmente ahora mismo?",
+			QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
+		)
+
+		if resp == QtWidgets.QMessageBox.StandardButton.Yes:
+			# Inyectamos los fallos al sistema de lotes
+			if self.batch_manager.set_files(rejected_paths):
+				self.is_batch_mode = True
+				self._load_next_batch_image(force_sync=True)
+			else:
+				self._navigate_to(ViewIndex.LANDING)
+		else:
+			self._navigate_to(ViewIndex.LANDING)
+
+	def _on_ai_error(self, err_msg: str):
+		self.is_ai_mode = False
+		QtWidgets.QMessageBox.critical(self, "Error de Inferencia", err_msg)
+		self._navigate_to(ViewIndex.LANDING)
 
 	def _load_next_batch_image(self, force_sync: bool = False):
 		"""Orquesta la extracción de imágenes, priorizando la memoria RAM (Buffer)."""
@@ -524,19 +715,42 @@ class MainWindow(QtWidgets.QMainWindow):
 
 		# Invocamos el dialogo de exportacion
 		from ui.dialogs.individual_export_dialog import IndividualExportDialog
+
+		basename = os.path.basename(self.current_image_path)
+		basename_no_extention, _ = os.path.splitext(basename)
 		
-		dialog = IndividualExportDialog(self.current_image_path, self)
+		dialog = IndividualExportDialog(basename_no_extention, self)
 		if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-			# Obtenemos los datos transaccionales (efímeros)
 			export_data = dialog.get_export_data()
 			out_dir = export_data["output_dir"]
 			filename = export_data["filename"]
 
+			# --- Extraemos los datos técnicos del JSON del usuario ---
+			from utils.individual_config import config_manager as ind_config
+			fmt_idx = ind_config.get("export_config", "format")
+			fmt = "jpg" if fmt_idx == 0 else "png"
+			quality = ind_config.get("export_config", "quality")
+			dpi = ind_config.get("export_config", "dpi")
+			target_size = ind_config.get("export_config", "size")
+			size_side_idx = ind_config.get("export_config", "size_side")
+			
+			# Mapeado de lado
+			anchor_map = {0: "longest_edge", 1: "shortest_edge", 2: "square"}
+			anchor = anchor_map.get(size_side_idx, "longest_edge")
+
 			try:
-				# Delegamos el guardado al componente output_fmt
-				export_image(warped, out_dir, filename, sufix="")
+				export_image(
+					cv_image=warped, 
+					out_dir=out_dir, 
+					base_filename=filename,
+					target_size=target_size,
+					anchor=anchor,
+					quality=quality,
+					dpi=dpi,
+					fmt=fmt,
+					sufix=""
+				)
 				
-				# Limpieza de memoria y UI
 				self.canvas.unload_image()
 				self.current_image_path = None
 				QtWidgets.QMessageBox.information(self, "Aviso", f"Imagen guardada exitosamente en:\n{out_dir}")
@@ -569,6 +783,10 @@ class MainWindow(QtWidgets.QMainWindow):
 			self.current_image_path = None
 			#Desactivamos el modo lote
 			self.is_batch_mode = False
+			if getattr(self, "is_ai_mode", False): #<- validamos si esta en modo IA
+				self.is_ai_cancelled = True
+				self.is_ai_paused = False # Forzamos el False para destrabar el "sleep" en caso de estar pausado
+				self.is_ai_mode = False
 			#Destruimos todo rastro de la memoria en espera
 			self.next_image_buffer = None
 			self.next_image_path_buffer = None

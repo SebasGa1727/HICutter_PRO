@@ -127,15 +127,16 @@ class LandingView(QtWidgets.QWidget):
         self.logo_label = QtWidgets.QLabel()
         self.logo_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
         
-        pixmap = QtGui.QPixmap("resources/hicutter_full_black.png")
+        # Obtenemos el logo ya escalado y cacheado desde el AssetManager
+        pixmap = assets.get_scaled_pixmap("hicutter_full_black.png", 650, 650)
+        
         if not pixmap.isNull():
-            # Escalado con interpolación suave respetando el aspect ratio
-            pixmap = pixmap.scaled(
-                700, 700, 
-                QtCore.Qt.AspectRatioMode.KeepAspectRatio, 
-                QtCore.Qt.TransformationMode.SmoothTransformation
-            )
             self.logo_label.setPixmap(pixmap)
+            self.logo_label.setMaximumHeight(650)
+        else:
+            # Fallback seguro en caso de que borren el archivo
+            self.logo_label.setText("LOGO HICUTTER")
+            self.logo_label.setStyleSheet("color: #555; font-size: 24pt; font-weight: bold;")
 
         sub_title = QtWidgets.QLabel('"Optimiza tu trabajo, preserva la historia"')
         sub_title.setProperty("landing_view", "subtitulo")

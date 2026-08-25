@@ -52,6 +52,17 @@ class BatchWorker(QtCore.QRunnable):
             save_mode = config_manager.get("save_config", "save_mode")
             route = config_manager.get("save_config", "route")
             sufix_config = config_manager.get("save_config", "sufix")
+
+            target_size = config_manager.get("export_config", "size")
+            size_side_idx = config_manager.get("export_config", "size_side")
+            quality = config_manager.get("export_config", "quality")
+            dpi = config_manager.get("export_config", "dpi")
+            fmt_idx = config_manager.get("export_config", "format")
+
+            fmt =  "jpg" if fmt_idx == 0 else "png"
+
+            anchor_map = {0: "longest_edge", 1: "shortest_edge", 2: "square"}
+            anchor = anchor_map.get(size_side_idx, "longest_edge")
             
             orig_dir = os.path.dirname(self.file_name)
             base_name = os.path.basename(self.file_name)
@@ -67,7 +78,17 @@ class BatchWorker(QtCore.QRunnable):
                 sufix = ""
 
             # Guardamos en disco delegando a export_image
-            out_path = export_image(warped, out_dir, base_name, sufix)
+            out_path = export_image(
+                        cv_image=warped, 
+                        out_dir=out_dir, 
+                        base_filename=base_name,
+                        target_size=target_size,
+                        anchor=anchor,
+                        quality=quality,
+                        dpi=dpi,
+                        fmt=fmt,
+                        sufix=sufix
+            )
             
             # Plugin de IA
             if AI_EXPORTER_AVAILABLE:

@@ -6,6 +6,10 @@ QWidget {
     font-family: "Segoe UI", "Lato", sans-serif;
 }
 
+QWidget[estilo="fondo_transparente"] {
+    background-color: transparent;
+}
+
 QDialog {
     background-color: #1A1A1A; /* Ligeramente más claro para que los pop-ups resalten */
 }
@@ -392,6 +396,27 @@ QLabel[converter_filter_dialog="filter_title"][estado="modificado"] {
     color: rgba(12, 141, 233, 0.9);
 }
 
+QLabel[ai_batch_view="exito"]{
+    color: #4CAF50; 
+    font-size: 13pt; 
+    font-weight: bold; 
+    background: transparent;
+}
+QLabel[ai_batch_view="aviso"]{
+    color: #FFC107; 
+    font-size: 13pt; 
+    font-weight: bold;
+}
+QLabel[ai_batch_view="archivo"]{
+    color: #ccc; 
+    font-size: 12pt; 
+    font-style: italic; 
+}
+QLabel[ai_batch_view="ETA"]{
+    color: #aaa; 
+    font-size: 10pt; 
+}
+
 /* ------------ 9.SPINBOXES (Cajas numericas)---------- */
 
 QSpinBox {
@@ -504,6 +529,11 @@ QFrame[landing_view="izquierda"] {
 QFrame[landing_view="derecha"] {
     background-color: rgba(12, 140, 233, 0.6);
 }
+QFrame[ai_batch_view="contenedor"] {
+    background-color: rgba(18, 18, 18, 0.7);
+    border-radius: 12px;
+    border: 1px solid rgba(12, 140, 233, 0.3);
+}
 
 /* ------------ 14.CONFIGURACIÓN DE ICON FONTS (iconos simples)---------- */
 
@@ -546,4 +576,28 @@ QPushButton[estilo="icono"][variante="regresar"]:hover, QPushButton[estilo="icon
 }
 QPushButton[estilo="icono"][variante="regresar"]:pressed { 
     color: #888;
+}
+
+/* ------------ 15. CONFIGURACIÓN DE TEXTO EDITABLE (TERMINAL) Y HERRAMIENTAS UNICAS ---------- */
+
+QTextEdit {
+    background-color: #0A0A0A;
+    color: #54B8FF;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10pt;
+    border: 2px solid #333333;
+    border-radius: 6px;
+    padding: 5px;
+}
+
+QProgressBar {
+    background-color: #1A1A1A;
+    border: 1px solid #333333;
+    border-radius: 12px;
+    color: #FFFFFF;
+    font-weight: bold;
+}
+QProgressBar::chunk {
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0860a1, stop:1 #0c8ce9);
+    border-radius: 11px;
 }

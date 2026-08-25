@@ -1,3 +1,4 @@
+import os
 from PyQt6 import QtWidgets, QtCore, QtGui
 from ui.components.neon_widgets import HiddenFilesFilterProxyModel, NeonTreeView, NeonSelectionDelegate, CustomPushButton
 
@@ -56,6 +57,38 @@ class LocalFilesSearcher(QtWidgets.QGroupBox):
         os_layout.addWidget(self.btn_add_element)
         os_layout.addSpacing(10)
 
+    def get_selected_paths(self) -> list[str]:
+        """Extrae rutas absolutas. Si es un archivo, lo añade. Si es carpeta, escanea recursivamente."""
+        paths = []
+        valid_exts = {'.png', '.jpg', '.jpeg', '.tif', '.tiff', '.cr2'}
+        
+        # 1. Obtenemos los índices visuales
+        selected_indexes = self.tree_os.selectionModel().selectedIndexes()
+        
+        for index in selected_indexes:
+            if index.column() == 0:
+                # 2. Traducimos a índice del sistema
+                source_index = self.proxy_model.mapToSource(index)
+                file_path = self.os_model.filePath(source_index)
+                file_info = QtCore.QFileInfo(file_path)
+                
+                # 3. Lógica bifurcada (Archivo vs Directorio)
+                if file_info.isFile():
+                    if os.path.splitext(file_path)[1].lower() in valid_exts:
+                        norm_path = os.path.normpath(file_path)
+                        if norm_path not in paths:
+                            paths.append(norm_path)
+                            
+                elif file_info.isDir():
+                    # Escaneo profundo de la carpeta seleccionada
+                    for root, _, files in os.walk(file_path):
+                        for file in files:
+                            if os.path.splitext(file)[1].lower() in valid_exts:
+                                full_path = os.path.normpath(os.path.join(root, file))
+                                if full_path not in paths:
+                                    paths.append(full_path)
+        return paths
+
 
 class SandboxTreeView(NeonTreeView):
     """
@@ -78,5 +111,6 @@ class SandboxTreeView(NeonTreeView):
         # Reglas de Drag & Drop interno
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
-        self.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.DragDrop)
+        self.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
         self.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
+        self.setDropIndicatorShown(True)

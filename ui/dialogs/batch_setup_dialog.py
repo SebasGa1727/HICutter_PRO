@@ -169,7 +169,7 @@ class BatchSetupDialog(QtWidgets.QDialog):
         self.size_spinbox.setSuffix("px")
 
         self.side_size_combobox = CustomComboBox()
-        self.side_size_combobox.addItems(["Lado corto", "Lado largo", "Cuadrado"])
+        self.side_size_combobox.addItems(["Lado largo", "Lado corto", "Cuadrado"])
 
         #Armado de layout "Dimensiones"
         size_side_layout.addWidget(self.size_spinbox)
@@ -217,12 +217,26 @@ class BatchSetupDialog(QtWidgets.QDialog):
         middle_layout.addLayout(btn_layout)
 
     def _browse_input(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Seleccionar carpeta origen")
+        # Obtenemos la ruta que ya está en el textbox (cargada desde el JSON)
+        current_path = self.txt_input_dir.text().strip()
+        
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(
+            self, 
+            "Seleccionar carpeta origen",
+            current_path # <-le indicamos a Windows dónde abrir
+        )
         if dir_path:
             self.txt_input_dir.setText(dir_path)
 
     def _browse_output(self):
-        dir_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Seleccionar carpeta destino")
+        # Obtenemos la ruta que ya está en el textbox (cargada desde el JSON)
+        current_path = self.txt_output_dir.text().strip()
+        
+        dir_path = QtWidgets.QFileDialog.getExistingDirectory(
+            self, 
+            "Seleccionar carpeta destino",
+            current_path 
+        )
         if dir_path:
             self.txt_output_dir.setText(dir_path)
 

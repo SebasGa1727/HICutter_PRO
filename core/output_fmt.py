@@ -2,7 +2,6 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
-from utils.batch_config import config_manager
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -20,7 +19,7 @@ def _calculate_proportional_size(orig_w: int, orig_h: int, target_size: int, anc
         if min_side == 0: return orig_w, orig_h
         ratio = target_size / float(min_side)
     else:
-        raise ValueError("El ancla debe ser 'longest_edge' o 'shortest_edge' o 'square'")
+        raise ValueError("El ancla debe ser 'longest_edge', 'shortest_edge' o 'square'")
     
     return int(round(orig_w * ratio)), int(round(orig_h * ratio))
 
@@ -31,26 +30,15 @@ def _cv2_to_pil(cv_img: np.ndarray) -> Image.Image:
         rgb_img = cv_img
     return Image.fromarray(rgb_img)
 
-def export_image(cv_image: np.ndarray, out_dir: str, base_filename: str, sufix: str = "") -> str:
-    """Exporta la imagen recortada recibiendo explícitamente el destino (SRP aplicado)."""
+def export_image(cv_image: np.ndarray, out_dir: str, base_filename: str, 
+                 target_size: int, anchor: str, quality: int, dpi: int, 
+                 fmt: str, sufix: str = "", subfolder_name: str = None) -> str:
+    """Función unificada 'Dumb Component'. Sirve para individuales, lotes y thumbnails."""
     try:
-        # Lee los parámetros de exportación del JSON correcto
-        fmt_index = config_manager.get("export_config", "format")
-        fmt = "jpg" if fmt_index == 0 else "png"
-        quality = config_manager.get("export_config", "quality")
-        dpi = config_manager.get("export_config", "dpi")
-        target_size = config_manager.get("export_config", "size")
-        size_side_idx = config_manager.get("export_config", "size_side")
-
-        # Mapeo de indices segun las variables del dialogo
-        if size_side_idx == 0:
-            anchor = "shortest_edge"
-        elif size_side_idx == 1:
-            anchor = "longest_edge"
-        else:
-            anchor = "square"
-
-        # Asegura que la ruta de destino exista
+        # Si se solicita una subcarpeta (como "Thumbnail"), la anidamos en el directorio de salida
+        if subfolder_name:
+            out_dir = os.path.join(out_dir, subfolder_name)
+            
         os.makedirs(out_dir, exist_ok=True)
 
         # Procesamiento Pillow
@@ -60,12 +48,12 @@ def export_image(cv_image: np.ndarray, out_dir: str, base_filename: str, sufix: 
         new_w , new_h = _calculate_proportional_size(orig_w, orig_h, target_size, anchor)
 
         # Reescalamos si supera los limites o si el usuario selecciono "square"
-        if anchor== "square" or orig_w > target_size or orig_h > target_size:
+        if anchor == "square" or orig_w > target_size or orig_h > target_size:
             pil_img = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
         else:
             logger.warning(f"No reescalado (Imagen original menor al target): {base_filename}")
 
-        # Construcción del nombre final con el sufijo inyectado
+        # Construcción del nombre final
         name, _ = os.path.splitext(base_filename)
         final_name = f"{name}{sufix}.{fmt}"
         out_path = os.path.join(out_dir, final_name)

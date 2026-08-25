@@ -55,15 +55,38 @@ class AssetManager:
         return self._icon_cache[filename]
 
     def get_pixmap(self, filename: str) -> QtGui.QPixmap:
-        """Devuelve un QPixmap (para logos o fotos en QLabels). Usa caché."""
+        """Devuelve un QPixmap original. Usa caché."""
         if filename not in self._pixmap_cache:
-            path = os.path.join(self._base_path, 'images', filename)
+            # Busca en 'resources/' directamente y luego en 'resources/images/'
+            path = os.path.join(self._base_path, filename)
             if not os.path.exists(path):
-                logger.warning(f"Imagen no encontrada: {path}")
-                return QtGui.QPixmap()
+                path = os.path.join(self._base_path, 'images', filename)
+                if not os.path.exists(path):
+                    logger.warning(f"Imagen no encontrada: {filename}")
+                    return QtGui.QPixmap()
             self._pixmap_cache[filename] = QtGui.QPixmap(path)
             
         return self._pixmap_cache[filename]
+
+    def get_scaled_pixmap(self, filename: str, width: int, height: int) -> QtGui.QPixmap:
+        """Devuelve un QPixmap escalado y lo cachea usando sus dimensiones como llave."""
+        cache_key = f"{filename}_{width}x{height}"
+        
+        if cache_key not in self._pixmap_cache:
+            # Primero obtenemos el original (aprovechando caché si existe)
+            original_pixmap = self.get_pixmap(filename)
+            if original_pixmap.isNull():
+                return original_pixmap
+            
+            # Escalamos con alta calidad y cacheamos el resultado
+            scaled = original_pixmap.scaled(
+                width, height, 
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio, 
+                QtCore.Qt.TransformationMode.SmoothTransformation
+            )
+            self._pixmap_cache[cache_key] = scaled
+            
+        return self._pixmap_cache[cache_key]
 
 # Instancia global para importar en toda la aplicación
 assets = AssetManager()
