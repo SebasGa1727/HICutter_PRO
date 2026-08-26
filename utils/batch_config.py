@@ -24,6 +24,7 @@ class BatchConfigManager:
             "save_mode": 0,                 # Index 0: sobreescribir, 1: imagen con sufijo, 2: nueva ruta
             "route": "",                    # Guarda la ruta de guardardado en caso de que save_mode sea 2
             "sufix": "",
+            "keep_structure": False,        # Guarda si mantiene o no la estructua de las carpetas: booleano
         }
     }
 

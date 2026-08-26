@@ -11,6 +11,22 @@ from utils.batch_config import config_manager
 
 logger = setup_logger(__name__)
 
+class PathRegistry:
+    """Mapeador determinista en RAM (Patrón Registry)"""
+    _map = {}
+
+    @classmethod
+    def register(cls, active_path: str, original_path: str) -> None:
+        cls._map[os.path.normpath(active_path)] = os.path.normpath(original_path)
+
+    @classmethod
+    def get_original(cls, active_path: str) -> str:
+        return cls._map.get(os.path.normpath(active_path), active_path)
+    
+    @classmethod
+    def clear(cls) -> None:
+        cls._map.clear()
+
 class ConfiguredSaverMixin:
     """
     Proporciona la lectura de configuraciones y el método de guardado rápido
@@ -20,6 +36,9 @@ class ConfiguredSaverMixin:
         self.out_dir = config_manager.get("save_config", "route")
         self.save_mode = config_manager.get("save_config", "save_mode")
         self.sufix = config_manager.get("save_config", "sufix")
+
+        self.keep_folder_structure = config_manager.get("save_config", "keep_structure")
+        self.base_input_dir = config_manager.get("save_config", "last_input_route")
         
         self.format_idx = config_manager.get("export_config", "format")
         self.fmt = "jpg" if self.format_idx == 0 else "png"
@@ -31,18 +50,31 @@ class ConfiguredSaverMixin:
         anchor_map = {0: "longest_edge", 1: "shortest_edge", 2: "square"}
         self.anchor = anchor_map.get(size_side_idx, "longest_edge")
 
-    def _fast_save(self, cv_image: np.ndarray, original_path: str) -> str:
+    def _fast_save(self, cv_image: np.ndarray, current_file_path: str) -> str:
         """Exportación directa y optimizada."""
         try:
-            if self.save_mode == 0: 
-                out_dir = os.path.dirname(original_path)
+            # 1. current_file_path trae la ruta activa (puede ser proxy). Sacamos la real.
+            real_original_path = PathRegistry.get_original(current_file_path)
+
+            # 2. Operamos todo con la real
+            orig_dir = os.path.dirname(real_original_path)
+            base_name = os.path.basename(real_original_path)
+
+            if self.save_mode == 0:   # 0: Sobreescribir en origen
+                out_dir = orig_dir
                 final_sufix = ""
-            elif self.save_mode == 1: 
-                out_dir = os.path.dirname(original_path)
-                final_sufix = self.sufix
-            else: 
-                out_dir = self.out_dir
+            elif self.save_mode == 1: # 1: Sufijo en origen
+                out_dir = orig_dir
+                final_sufix = self.sufix # <-- Corregido (era self.sufix_config)
+            else:                # 2: Nueva Ruta
                 final_sufix = ""
+                if self.keep_folder_structure and self.base_input_dir:
+                    rel_dir = os.path.relpath(orig_dir, os.path.normpath(self.base_input_dir))
+                    if rel_dir == ".":
+                        rel_dir = ""
+                    out_dir = os.path.normpath(os.path.join(self.out_dir, rel_dir))
+                else:
+                    out_dir = self.out_dir
 
             os.makedirs(out_dir, exist_ok=True)
 
@@ -68,7 +100,7 @@ class ConfiguredSaverMixin:
             if self.anchor == "square" or orig_w > self.target_size or orig_h > self.target_size:
                 pil_img = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-            base_name, _ = os.path.splitext(os.path.basename(original_path))
+            base_name, _ = os.path.splitext(os.path.basename(real_original_path))
             final_name = f"{base_name}{final_sufix}.{self.fmt}"
             out_path = os.path.join(out_dir, final_name)
 
@@ -77,7 +109,7 @@ class ConfiguredSaverMixin:
 
             return out_path
         except Exception as e:
-            logger.error(f"Error en guardado rápido IA para {original_path}", exc_info=True)
+            logger.error(f"Error en guardado rápido IA para {real_original_path}", exc_info=True)
             return ""
 
 # HILO 1: WORKER PRINCIPAL DE IA (Inferencia)
@@ -209,11 +241,11 @@ class AIBatchWorker(QtCore.QRunnable, ConfiguredSaverMixin):
         
         # Determinar color basado en confianza
         if conf >= 0.80:
-            color = (0, 215, 255) # Amarillo (BGR)
+            color = (0, 215, 255) # Amarillo
         elif conf >= 0.60:
-            color = (0, 152, 255) # Naranja (BGR)
+            color = (0, 152, 255) # Naranja
         else:
-            color = (54, 67, 244) # Rojo (BGR)
+            color = (54, 67, 244) # Rojo
 
         if conf > 0.0:
             cv2.rectangle(thumb, (tx1, ty1), (tx2, ty2), color, 3)

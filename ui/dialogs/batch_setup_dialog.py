@@ -29,7 +29,7 @@ class BatchSetupDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Configuración de Procesamiento por Lotes")
-        self.setFixedSize(500, 600)
+        self.setFixedSize(500, 630)
         self.setModal(True)
         self._setup_ui()
         self._load_settings()
@@ -95,9 +95,10 @@ class BatchSetupDialog(QtWidgets.QDialog):
 
         # Selector de carpeta de salida (Oculto por defecto)
         self.out_dir_widget = QtWidgets.QWidget()
-        out_dir_layout = QtWidgets.QHBoxLayout(self.out_dir_widget)
-        out_dir_layout.setContentsMargins(0, 0, 0, 0)
-        out_dir_layout.setSpacing(0)
+        out_dir_layout = QtWidgets.QVBoxLayout(self.out_dir_widget)
+        lbl_btn_out_dir_layout = QtWidgets.QHBoxLayout()
+        lbl_btn_out_dir_layout.setContentsMargins(0, 0, 0, 0)
+        lbl_btn_out_dir_layout.setSpacing(0)
         
         self.txt_output_dir = QtWidgets.QLineEdit()
         self.txt_output_dir.setPlaceholderText("Seleccione la carpeta de destino...")
@@ -110,8 +111,16 @@ class BatchSetupDialog(QtWidgets.QDialog):
         self.btn_browse_output.setProperty("converter_setup_view", "out_dir_style")
         self.btn_browse_output.clicked.connect(self._browse_output)
         
-        out_dir_layout.addWidget(self.txt_output_dir, stretch=1)
-        out_dir_layout.addWidget(self.btn_browse_output)
+        lbl_btn_out_dir_layout.addWidget(self.txt_output_dir, stretch=1)
+        lbl_btn_out_dir_layout.addWidget(self.btn_browse_output)
+
+        self.keep_folder_structure = CustomCheckBox("MANTENER ESTRUCTURA DE CARPETAS")
+        self.keep_folder_structure.setChecked(False)
+
+        out_dir_layout.addLayout(lbl_btn_out_dir_layout)
+        out_dir_layout.addSpacing(15)
+        out_dir_layout.addWidget(self.keep_folder_structure, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+
         self.out_dir_widget.setVisible(False)
 
         # Contenido de sufijo oculto por defecto
@@ -212,8 +221,8 @@ class BatchSetupDialog(QtWidgets.QDialog):
 
         # Armado global
         middle_layout.addWidget(origen_group, stretch=1)
-        middle_layout.addWidget(destino_group, stretch=1)
-        middle_layout.addWidget(config_group, stretch= 1)
+        middle_layout.addWidget(destino_group, stretch=2)
+        middle_layout.addWidget(config_group, stretch= 2)
         middle_layout.addLayout(btn_layout)
 
     def _browse_input(self):
@@ -277,6 +286,7 @@ class BatchSetupDialog(QtWidgets.QDialog):
         # Cargamos rutas y textos
         self.txt_output_dir.setText(config_manager.get("save_config", "route") or "")
         self.sufix_name.setText(config_manager.get("save_config", "sufix") or "_copia")
+        self.keep_folder_structure.setChecked(config_manager.get("save_config", "keep_structure")or False)
 
         # --- Configuración de Exportación ---
         self.export_combobox.setCurrentIndex(config_manager.get("export_config", "format"))
@@ -295,6 +305,7 @@ class BatchSetupDialog(QtWidgets.QDialog):
         config_manager.set("save_config", "save_mode", self.combo_mode.currentIndex())
         config_manager.set("save_config", "route", self.txt_output_dir.text().strip())
         config_manager.set("save_config", "sufix", self.sufix_name.text().strip())
+        config_manager.set("save_config", "keep_structure", self.keep_folder_structure.isChecked())
 
         # --- Configuración de Exportación ---
         config_manager.set("export_config", "format", self.export_combobox.currentIndex())

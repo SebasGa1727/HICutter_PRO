@@ -15,6 +15,21 @@ except ImportError:
 
 logger = setup_logger(__name__)
 
+class PathRegistry:
+    """Mapeador determinista en RAM (Patrón Registry)"""
+    _map = {}
+
+    @classmethod
+    def register(cls, active_path: str, original_path: str) -> None:
+        cls._map[os.path.normpath(active_path)] = os.path.normpath(original_path)
+
+    @classmethod
+    def get_original(cls, active_path: str) -> str:
+        return cls._map.get(os.path.normpath(active_path), active_path)
+    
+    @classmethod
+    def clear(cls) -> None:
+        cls._map.clear()
 # SEÑALES DEL OBRERO
 
 # Los QRunnable no pueden emitir señales directamente, 
@@ -53,6 +68,9 @@ class BatchWorker(QtCore.QRunnable):
             route = config_manager.get("save_config", "route")
             sufix_config = config_manager.get("save_config", "sufix")
 
+            keep_folder_structure = config_manager.get("save_config", "keep_structure")
+            base_input_dir = config_manager.get("save_config", "last_input_route")
+
             target_size = config_manager.get("export_config", "size")
             size_side_idx = config_manager.get("export_config", "size_side")
             quality = config_manager.get("export_config", "quality")
@@ -63,9 +81,11 @@ class BatchWorker(QtCore.QRunnable):
 
             anchor_map = {0: "longest_edge", 1: "shortest_edge", 2: "square"}
             anchor = anchor_map.get(size_side_idx, "longest_edge")
+
+            real_original_path = PathRegistry.get_original(self.file_name)
             
-            orig_dir = os.path.dirname(self.file_name)
-            base_name = os.path.basename(self.file_name)
+            orig_dir = os.path.dirname(real_original_path)
+            base_name = os.path.basename(real_original_path)
 
             if save_mode == 0:   # 0: Sobreescribir en origen
                 out_dir = orig_dir
@@ -74,8 +94,14 @@ class BatchWorker(QtCore.QRunnable):
                 out_dir = orig_dir
                 sufix = sufix_config
             else:                # 2: Nueva Ruta
-                out_dir = route
                 sufix = ""
+                if keep_folder_structure and base_input_dir:
+                    rel_dir = os.path.relpath(orig_dir, os.path.normpath(base_input_dir))
+                    if rel_dir == ".":
+                        rel_dir = ""
+                    out_dir = os.path.normpath(os.path.join(route, rel_dir))
+                else:
+                    out_dir = route
 
             # Guardamos en disco delegando a export_image
             out_path = export_image(

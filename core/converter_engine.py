@@ -73,6 +73,22 @@ def wait_for_resources(check_cancel_func, process_resume, alert_func, safe_margi
         if not alert_triggered:
             waited_time += 1
 
+class PathRegistry:
+    """Mapeador determinista en RAM (Patrón Registry)"""
+    _map = {}
+
+    @classmethod
+    def register(cls, active_path: str, original_path: str) -> None:
+        cls._map[os.path.normpath(active_path)] = os.path.normpath(original_path)
+
+    @classmethod
+    def get_original(cls, active_path: str) -> str:
+        return cls._map.get(os.path.normpath(active_path), active_path)
+    
+    @classmethod
+    def clear(cls) -> None:
+        cls._map.clear()
+
 class ProxyWorkerSignals(QtCore.QObject):
     finished = QtCore.pyqtSignal(int, str)
     error = QtCore.pyqtSignal(int, str, str)
@@ -253,10 +269,18 @@ class ProxyManager(QtCore.QObject):
         self._workers_dispatched = 0
         self._workers_finished = 0
         self.start_time = time.perf_counter()
+        PathRegistry.clear() # Limpiar memoria de lotes anteriores
 
         for i, file_path in enumerate(all_files):
             ext = os.path.splitext(file_path)[1].lower()
             if ext in heavy_exts:
+                # Calcular la ruta determinista del proxy para registrarla
+                base_name = os.path.basename(file_path)
+                name_no_ext = os.path.splitext(base_name)[0]
+                proxy_path = os.path.join(self._temp_vault.name, f"{name_no_ext}.jpg")
+                
+                PathRegistry.register(proxy_path, file_path) # <- REGISTRO PROXY
+
                 self._workers_dispatched += 1
                 worker = ProxyWorker(file_path, self._temp_vault.name, i, lambda: self.is_cancelled)
                 worker.signals.finished.connect(self._on_worker_finished)
@@ -265,6 +289,7 @@ class ProxyManager(QtCore.QObject):
                 worker.signals.process_resume.connect(self._quit_os_notification)
                 self.pool.start(worker)
             else:
+                PathRegistry.register(file_path, file_path)  # <- REGISTRO ORIGINAL
                 self._final_list[i] = file_path
                 self._completed_files += 1
 
