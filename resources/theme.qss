@@ -596,6 +596,7 @@ QProgressBar {
     border-radius: 12px;
     color: #FFFFFF;
     font-weight: bold;
+    text-align: center;
 }
 QProgressBar::chunk {
     background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0860a1, stop:1 #0c8ce9);
