@@ -7,7 +7,7 @@ if __name__ == "__main__":
 from utils.logger import setup_logger
 from utils.asset_manager import assets
 from utils.converter_config import config_manager
-from ui.components.neon_widgets import NeonProxyStyle
+from ui.components.neon_widgets import NeonProxyStyle, CustomPushButton, CustomSpinBox
 
 logger = setup_logger(__name__)
 
@@ -18,9 +18,10 @@ class MultiFolderDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle("Generador de Carpetas")
         self.setFixedSize(600, 360)
-        self.setModal(True) # Bloquea la interfaz principal
+        self.setModal(True)             # Bloquea la interfaz principal
         self._setup_ui()
-        self._update_preview() # Generar preview inicial
+        self._update_preview()          # Generar preview inicial
+        self._preload_user_info()       # Carga la informacion del usuario
 
     def _setup_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
@@ -47,24 +48,22 @@ class MultiFolderDialog(QtWidgets.QDialog):
         left_form_layout.setVerticalSpacing(11)
 
         # Cantidad de carpetas
-        self.spin_count = QtWidgets.QSpinBox()
+        self.spin_count = CustomSpinBox()
         self.spin_count.setRange(2, 10000)
         self.spin_count.setValue(2)
 
         # Número Inicial
-        self.spin_start = QtWidgets.QSpinBox()
+        self.spin_start = CustomSpinBox()
         self.spin_start.setRange(0, 99999)
         self.spin_start.setValue(1)
 
         # Padding (Ceros a la izquierda)
-        self.spin_padding = QtWidgets.QSpinBox()
+        self.spin_padding = CustomSpinBox()
         self.spin_padding.setRange(1, 6)
         self.spin_padding.setValue(2)
         self.spin_padding.setToolTip("Ej: 2 dígitos = 01, 3 dígitos = 001")
 
         for s in [self.spin_count, self.spin_start, self.spin_padding]:
-            s.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
-            s.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             s.setFixedSize(46,19)
             s.valueChanged.connect(self._update_preview)
             
@@ -126,13 +125,13 @@ class MultiFolderDialog(QtWidgets.QDialog):
 
         # Botones de Acción
         btn_layout = QtWidgets.QHBoxLayout()
-        self.btn_cancel = QtWidgets.QPushButton("Cancelar")
+        self.btn_cancel = CustomPushButton("Cancelar")
         self.btn_cancel.setProperty("estilo", "cancelar")
         self.btn_cancel.clicked.connect(self.reject)
         
-        self.btn_create = QtWidgets.QPushButton("Generar Carpetas")
+        self.btn_create = CustomPushButton("Generar Carpetas")
         self.btn_create.setProperty("estilo", "primario")
-        self.btn_create.clicked.connect(self.accept)
+        self.btn_create.clicked.connect(self._accept)
 
         btn_layout.addWidget(self.btn_cancel)
         btn_layout.addStretch(1)
@@ -245,7 +244,30 @@ class MultiFolderDialog(QtWidgets.QDialog):
             }
         except Exception:
             logger.error("Error al intentar obtener los datos del multi_folder_Dialog", exc_info=True)
+
+    def _preload_user_info(self):
+        """Carga la informacion del JSON utilizada previamente"""
+        self.spin_count.setValue(config_manager.get("multi_folder_dialog", "count") or 2)
+        self.spin_start.setValue(config_manager.get("multi_folder_dialog", "start") or 1)
+        self.spin_padding.setValue(config_manager.get("multi_folder_dialog", "padding") or 2)
+        number = 1
+        for line_edit in self.line_edit_list :
+            line_edit.setText(config_manager.get("multi_folder_dialog", str(number)))
+            number += 1
+
+    def _accept(self):
+        """Guarda la configuración antes de cerrar el diálogo."""
+        number = 1
+        for line_edit in self.line_edit_list:
+            config_manager.set("multi_folder_dialog", str(number), str(line_edit.text()))
+            number += 1
+            
+        config_manager.set("multi_folder_dialog", "count", self.spin_count.value())
+        config_manager.set("multi_folder_dialog", "start", self.spin_start.value())
+        config_manager.set("multi_folder_dialog", "padding", self.spin_padding.value())
+        super().accept()
     
+
 # ==========================================
 # ENTORNO AISLADO (MOCK ENVIRONMENT)
 # ==========================================

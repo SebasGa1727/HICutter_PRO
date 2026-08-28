@@ -11,24 +11,29 @@ class ConverterConfigManager:
     CONFIG_FILE = "setup_settings.json"
 
     DEFAULT_CONFIG = {
-        "export_image": {
-            "format": "jpg",        # Index 0: jpg, 1: png
-            "quality": 80,
-            "dpi": 96,
-            "size": 3000,
-            "size_side": 0,         # Index 0: Lado corto, 1: Largo, 2: Cuadrado
-        },
-        "ai_export": {
-            "yolo_enabled": False
+        "convert_image": {
+            "format": 0,        # Index 0: jpg, 1: png
+            "quality": 90,
         },
         "paths": {
-            "use_preset_dir": False,
-            "pre_set_output_dir": "",
-            "last_dir": "",
-            "input_last_dir": ""
+            "last_dir": ""
         },
-        "multi_folder_dialog": { "1": "", "2": "", "3": "" },
-        "batch_rename_dialog": { "1": "", "2": "", "3": "" }
+        "multi_folder_dialog": { 
+            "1": "", 
+            "2": "", 
+            "3": "",
+            "count": 2,
+            "start": 1,
+            "padding": 2
+        },
+        "batch_rename_dialog": {
+            "1": "", 
+            "2": "", 
+            "3": "",
+            "start": 1,
+            "padding": 3,
+            "step": 1
+        }
     }
 
     def __init__(self) -> None:

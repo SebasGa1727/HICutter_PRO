@@ -1,13 +1,12 @@
 from PyQt6 import QtWidgets, QtCore, QtGui
+from ui.components.neon_widgets import CustomComboBox, CustomSpinBox, CustomPushButton
+from utils.converter_config import config_manager
 
 class ConfigDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, current_config: dict = None):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Configuración de conversión")
-        self.resize(360, 300)
-        self.setWindowFlag(QtCore.Qt.WindowType.WindowContextHelpButtonHint, False)
-        
-        self.current_config = current_config or {}
+        self.resize(360, 250)
         
         self._setup_ui()
         self._load_current_settings()
@@ -23,24 +22,13 @@ class ConfigDialog(QtWidgets.QDialog):
         converter_lbl_title.setProperty("estilo", "title")
         converter_lbl_title.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
         
-        self.converter_format = QtWidgets.QComboBox()
-        self.converter_format.addItems(["JPG (Recomendado)", "PNG (Sin pérdida)"])
+        self.converter_format = CustomComboBox()
+        self.converter_format.addItems(["JPG", "PNG"])
         
-        self.converter_quality = QtWidgets.QSpinBox()
-        self.converter_quality.setMaximumWidth(43)
+        self.converter_quality = CustomSpinBox()
+        self.converter_quality.setMaximumWidth(50)
         self.converter_quality.setRange(10, 100)
         self.converter_quality.setSuffix(" %")
-        self.converter_quality.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.converter_quality.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        
-        self.converter_color_space = QtWidgets.QComboBox()
-        self.converter_color_space.addItems(["sRGB (Web/Universal)", "Adobe RGB", "ProPhoto RGB", "Escala de Grises"])
-
-        for combobox in [self.converter_format, self.converter_color_space]:
-            combobox.setEditable(True)
-            line_edit = combobox.lineEdit()
-            line_edit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            line_edit.setReadOnly(True)
 
         # Creacion del formulario
         form_layout = QtWidgets.QFormLayout()
@@ -48,7 +36,6 @@ class ConfigDialog(QtWidgets.QDialog):
         form_layout.setSpacing(15)
         form_layout.addRow("Formato de Exportación:", self.converter_format)
         form_layout.addRow("Calidad de Compresión:", self.converter_quality)
-        form_layout.addRow("Espacio de Color:", self.converter_color_space)
 
         # Armado del layout de conversion
         converter_layout.addWidget(converter_lbl_title)
@@ -57,13 +44,13 @@ class ConfigDialog(QtWidgets.QDialog):
 
         # Botones inferiores
         btn_layout = QtWidgets.QHBoxLayout()
-        self.btn_cancel = QtWidgets.QPushButton("CANCELAR")
+        self.btn_cancel = CustomPushButton("CANCELAR")
         self.btn_cancel.setProperty("estilo", "cancelar")
         self.btn_cancel.clicked.connect(self.reject)
 
-        self.btn_accept = QtWidgets.QPushButton("GUARDAR")
+        self.btn_accept = CustomPushButton("GUARDAR")
         self.btn_accept.setProperty("estilo", "primario")
-        self.btn_accept.clicked.connect(self.accept)
+        self.btn_accept.clicked.connect(self._accept_and_save)
         
         btn_layout.addWidget(self.btn_cancel)
         btn_layout.addStretch(1)
@@ -74,6 +61,21 @@ class ConfigDialog(QtWidgets.QDialog):
         main_layout.addLayout(converter_layout)
         main_layout.addStretch(1)
         main_layout.addLayout(btn_layout)
+
+    def _load_current_settings(self):
+        """Si la ventana se abre y ya había configuración previa, cargamos los datos."""
+        self.converter_format.setCurrentIndex(config_manager.get("convert_image", "format") or 0)
+        self.converter_quality.setValue(config_manager.get("convert_image", "quality") or 90)
+
+    def _save_export_settings(self):
+        """Almacena la informacion en el JSON de conversion"""
+        config_manager.set("convert_image", "format", self.converter_format.currentIndex())
+        config_manager.set("convert_image", "quality", self.converter_quality.value())
+
+    def _accept_and_save(self):
+        """Guarda los datos y cierra la ventana"""
+        self._save_export_settings()
+        self.accept()
 
     def keyPressEvent(self, event: QtGui.QKeyEvent):
         """Sobrescribe el evento de teclado para evitar que Enter/Return cierre el diálogo"""
@@ -88,7 +90,7 @@ class ConfigDialog(QtWidgets.QDialog):
                 self.btn_cancel.click()
 
             # Habilitamos el enter para los combobox, haciendo que despliegue su menu
-            elif isinstance(focused_widget, QtWidgets.QComboBox):
+            elif isinstance(focused_widget, CustomComboBox):
                 focused_widget.showPopup()
 
             else:
@@ -97,11 +99,3 @@ class ConfigDialog(QtWidgets.QDialog):
         else:
             # Permitimos el comportamiento predeterminado para cualquier otra tecla 
             super().keyPressEvent(event)
-
-    def _load_current_settings(self):
-        """Si la ventana se abre y ya había configuración previa, cargamos los datos."""
-        #TODO
-
-    def save_export_settings(self) -> dict:
-        """Empaqueta y devuelve la configuración final para ser usada por el motor."""
-        #TODO

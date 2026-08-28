@@ -1,16 +1,20 @@
-import cv2
-import numpy as np
-from PyQt6 import QtWidgets, QtCore, QtGui
 # TRUCO PARA MOCK: Agregar la raíz del proyecto al PATH para ejecuciones aisladas
 if __name__ == "__main__":
     import sys
     import os
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+import cv2
+import os
+import io
+from PIL import Image, ImageOps
+import numpy as np
+from PyQt6 import QtWidgets, QtCore, QtGui
 from utils.icon_map import HICutterIcons
 from utils.logger import setup_logger
 from utils.asset_manager import assets
 from utils.utils import _cv_to_qpixmap
 from ui.components.geometry import ScaledPixmapManager
+from ui.components.neon_widgets import CustomPushButton, CustomSpinBox
 
 logger = setup_logger(__name__)
 
@@ -111,13 +115,10 @@ class FilterBlockBuilder:
         slider.wheelEvent = lambda event: event.ignore()
         slider.setProperty("nombre_filtro", nombre_etiqueta)
         
-        spinbox = QtWidgets.QSpinBox()
+        spinbox = CustomSpinBox()
         spinbox.setRange(-100, 100)
         spinbox.setValue(0)
-        spinbox.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
         spinbox.setFixedWidth(34)
-        spinbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        spinbox.setCursor(QtCore.Qt.CursorShape.IBeamCursor)
 
         # Conexiones entre slider y spinbox
         slider.valueChanged.connect(spinbox.setValue) #<- El slider actualiza al spinbox
@@ -252,9 +253,8 @@ class FilterDialog(QtWidgets.QDialog):
         self.preview_label = QtWidgets.QLabel("No hay imagen disponible")
         self.preview_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.preview_label.setStyleSheet("background-color: #171717; border: 1px solid #555;")
-        
-        # Esto hace que la imagen se adapte al label si es muy grande
-        self.preview_label.setScaledContents(False) 
+        self.preview_label.setScaledContents(False)
+        self.preview_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Ignored, QtWidgets.QSizePolicy.Policy.Ignored)
 
         # Etiqueta de filtros aplicados
         self.lbl_active_values = QtWidgets.QLabel("Ningún filtro aplicado")
@@ -272,14 +272,12 @@ class FilterDialog(QtWidgets.QDialog):
 
         # Botones inferiores (Aceptar/Cancelar)
         btn_layout = QtWidgets.QHBoxLayout()
-        self.btn_cancel = QtWidgets.QPushButton("CANCELAR")
+        self.btn_cancel = CustomPushButton("CANCELAR")
         self.btn_cancel.setProperty("estilo", "cancelar")
-        self.btn_cancel.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.btn_cancel.clicked.connect(self.reject)
 
-        self.btn_accept = QtWidgets.QPushButton("APLICAR")
+        self.btn_accept = CustomPushButton("APLICAR")
         self.btn_accept.setProperty("estilo", "primario")
-        self.btn_accept.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.btn_accept.clicked.connect(self.accept)
         
         btn_layout.addWidget(self.btn_cancel)
@@ -292,17 +290,65 @@ class FilterDialog(QtWidgets.QDialog):
         main_layout.addLayout(btn_layout)
 
     def _load_initial_image(self):
-        """Carga la imagen base si se proporcionó una ruta."""
+        """Carga la imagen base utilizando la tubería matemática exacta del motor de exportación."""
         if not self.current_image_path:
             return
             
         try:
-            self.original_image = cv2.imread(self.current_image_path)
-            if self.original_image is not None:
-                # Mostramos la imagen original al abrir
-                self._display_image(self.original_image)
+            import io
+            from PIL import Image, ImageOps
+            
+            ext = os.path.splitext(self.current_image_path)[1].lower()
+            img_bgr = None
+
+            # RENDERIZADO RAW PRECISO (Sincronizado con converter_engine)
+            if ext == '.cr2':
+                try:
+                    import rawpy
+                    with rawpy.imread(self.current_image_path) as raw:
+                        # Usamos la MISMA configuración del motor para que la luz sea idéntica,
+                        # pero activamos half_size=True para que el diálogo se abra hiper-rápido
+                        rgb = raw.postprocess(
+                            use_camera_wb=True,
+                            no_auto_bright=False, # Sincronizado con el motor
+                            half_size=True,       # Truco de velocidad UI (1/4 del tiempo de proceso)
+                            demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR,
+                            output_color=rawpy.ColorSpace.sRGB
+                        )
+                        # El diálogo trabaja en BGR para sus LUTs
+                        img_bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+                except Exception as e:
+                    logger.warning(f"Fallo al renderizar RAW para preview: {e}")
+
+            # 2. CARGA UNIVERSAL PARA TIFF, JPG, PNG
+            if img_bgr is None:
+                with Image.open(self.current_image_path) as img:
+                    img = ImageOps.exif_transpose(img)
+                    if img.mode != "RGB": 
+                        img = img.convert("RGB")
+                    img_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+            # 3. GENERACIÓN DEL PROXY EN RAM PARA LA INTERFAZ
+            if img_bgr is not None:
+                self.original_image = img_bgr
+                alto, ancho = self.original_image.shape[:2]
+                max_dim = 800
+                
+                # Escalamos para que los cálculos de sliders en tiempo real sean a 60 FPS
+                if max(alto, ancho) > max_dim:
+                    escala = max_dim / max(alto, ancho)
+                    nuevo_ancho = int(ancho * escala)
+                    nuevo_alto = int(alto * escala)
+                    self.preview_image_base = cv2.resize(self.original_image, (nuevo_ancho, nuevo_alto), interpolation=cv2.INTER_AREA)
+                else:
+                    self.preview_image_base = self.original_image.copy()
+
+                # Disparamos la primera previsualización
+                self._apply_filters_and_preview()
+                
         except Exception as e:
-            logger.error(f"No se pudo cargar la imagen de preview: {e}")
+            logger.error(f"No se pudo cargar la imagen de preview: {e}", exc_info=True)
+            self.preview_label.setText("Formato no soportado o archivo corrupto")
 
     def _request_preview_update(self, sliders_list: QtWidgets.QSlider):
         """Se llama cada vez que el usuario mueve un control. 
@@ -323,30 +369,124 @@ class FilterDialog(QtWidgets.QDialog):
         else:
             self.lbl_active_values.setText("Ningún filtro aplicado")
 
-
     def _apply_filters_and_preview(self):
-        """Aplica la matemática del filtro y actualiza el Qlabel. 
-        Solo se ejecuta tras 150ms de inactividad del usuario."""
-        pass
-        #TODO
-        # 1. Obtener valores de la interfaz creando el diccionario
-        # self.get_filter_settings(values)
+        """Aplica la matemática del filtro usando LUTs (Look-Up Tables) para máximo rendimiento."""
+        if not hasattr(self, 'preview_image_base') or self.preview_image_base is None:
+            return
+
+        settings = self.get_filter_settings()
         
-        # 2. emitir señales con los valores al creador de proxies para que genere el calculo de la imagen
+        # Si todos los filtros están en 0, renderizamos directamente el proxy sin hacer matemáticas
+        if all(v == 0 for v in settings.values()):
+            self._display_image(self.preview_image_base)
+            return
+
+        # 1. GENERACIÓN DEL LUT DE 256 VALORES (Calculamos la matemática solo 256 veces)
+        x = np.arange(256, dtype=np.float32)
         
-        # 3. recibir el calculo y la imagen con los valores efectuados
+        # --- EXPOSICIÓN ---
+        expo = settings["exposicion"]
+        y = x + (expo * 1.2) # Factor multiplicador sensible
         
-        # 4. Mostrar el resultado
+        # --- LUZ Y SOMBRA (Máscaras no lineales) ---
+        luces = settings["luces"]
+        sombras = settings["sombras"]
+        
+        shadow_mask = (255 - x) / 255.0  # Afecta más cerca del 0
+        y += sombras * shadow_mask * 0.8
+        
+        highlight_mask = x / 255.0       # Afecta más cerca del 255
+        y += luces * highlight_mask * 0.8
+        
+        # --- NIVELES (Contraste extendido) ---
+        negros = settings["negros"]
+        blancos = settings["blancos"]
+        
+        if negros != 0 or blancos != 0:
+            # Desplazamos el punto negro y el punto blanco
+            in_black = max(0, negros)
+            in_white = min(255, 255 - blancos)
+            if in_white > in_black:
+                y = (y - in_black) * (255.0 / (in_white - in_black))
+
+        y = np.clip(y, 0, 255)
+        
+        # --- TEMPERATURA (Se aplica por canal) ---
+        temp = settings["temperatura"]
+        
+        # Si temp > 0 (Cálido): Sube Rojo, Baja Azul
+        # Si temp < 0 (Frío): Baja Rojo, Sube Azul
+        lut_b = np.clip(y - (temp * 0.6), 0, 255).astype(np.uint8)
+        lut_g = np.clip(y, 0, 255).astype(np.uint8)
+        lut_r = np.clip(y + (temp * 0.6), 0, 255).astype(np.uint8)
+        
+        lut_bgr = np.dstack((lut_b, lut_g, lut_r))
+
+        # 2. APLICACIÓN CIBERNÉTICA DE LUT (Tiempo de ejecución: < 5 ms)
+        filtered_img = cv2.LUT(self.preview_image_base, lut_bgr)
+        
+        # 3. Mostrar el resultado
+        self._display_image(filtered_img)
 
     def _display_image(self, cv_img: np.ndarray):
-        """Convierte la matriz BGR de OpenCV a QPixmap para la interfaz."""
-        pass
+        """Convierte la matriz BGR de OpenCV a QPixmap usando utilerías y ajusta al Label."""
+        try:
+            # Reutilizamos la función de tus utilerías o lo generamos nativamente
+            rgb_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+            h, w, ch = rgb_img.shape
+            bytes_per_line = ch * w
+            
+            q_img = QtGui.QImage(rgb_img.data, w, h, bytes_per_line, QtGui.QImage.Format.Format_RGB888)
+            pixmap = QtGui.QPixmap.fromImage(q_img)
+            
+            # Escalamos el pixmap para que encaje perfectamente en el QLabel sin estirarse
+            scaled_pixmap = pixmap.scaled(
+                self.preview_label.size(), 
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio, 
+                QtCore.Qt.TransformationMode.SmoothTransformation
+            )
+            
+            self.preview_label.setPixmap(scaled_pixmap)
+        except Exception as e:
+            logger.error("Error renderizando miniatura del filtro", exc_info=True)
+            self.preview_label.setText("Error al renderizar preview")
+
+    def resizeEvent(self, event):
+        """Evento nativo: Si el usuario agranda la ventana, redibujamos para que la imagen crezca."""
+        super().resizeEvent(event)
+        if hasattr(self, 'preview_image_base'):
+            self._apply_filters_and_preview()
+
+    def load_settings(self, settings: dict):
+        """Carga la configuración técnica si el usuario seleccionó un nodo que ya tenía filtros aplicados."""
+        if not settings:
+            return
+            
+        # Desactivamos temporalmente el timer para que no recalcule mientras seteamos valores
+        self._preview_timer.blockSignals(True)
+        
+        self.slider_temperatura.setValue(settings.get("temperatura", 0))
+        self.slider_exposicion.setValue(settings.get("exposicion", 0))
+        self.slider_luz.setValue(settings.get("luces", 0))
+        self.slider_sombra.setValue(settings.get("sombras", 0))
+        self.slider_nivel_negro.setValue(settings.get("negros", 0))
+        self.slider_nivel_medio.setValue(settings.get("medios", 0))
+        self.slider_nivel_blanco.setValue(settings.get("blancos", 0))
+        
+        self._preview_timer.blockSignals(False)
+        self._apply_filters_and_preview()
 
     def get_filter_settings(self) -> dict:
-        """Devuelve un diccionario con los valores elegidos para que el motor 
-        principal los aplique durante el procesamiento en lote."""
-        #TODO
-        pass
+        """Devuelve un diccionario limpio con los valores elegidos para registrar en el Sandbox."""
+        return {
+            "temperatura": self.slider_temperatura.value(),
+            "exposicion": self.slider_exposicion.value(),
+            "luces": self.slider_luz.value(),
+            "sombras": self.slider_sombra.value(),
+            "negros": self.slider_nivel_negro.value(),
+            "medios": self.slider_nivel_medio.value(),
+            "blancos": self.slider_nivel_blanco.value()
+        }
 
 # ==========================================
 # ENTORNO AISLADO (MOCK ENVIRONMENT)

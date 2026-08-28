@@ -9,7 +9,7 @@ from PyQt6 import QtWidgets, QtGui, QtCore
 from PyQt6.QtCore import QThreadPool
 from core.batch_engine import BatchManager, BatchWorker, PreloadWorker
 from core.processor import process_perspective_crop, rotate_image
-from core.converter_engine import ProxyManager
+from core.converter_engine import ProxyManager, DirectConvertManager
 from core.output_fmt import export_image
 from core.AI_exporter import split_dataset_train_val
 from core.ai_batch_mode import AIBatchWorker, AIFastCropWorker
@@ -71,6 +71,13 @@ class MainWindow(QtWidgets.QMainWindow):
 		self._out_of_ram_warning = None
 		self.proxy_wait_dialog = None
 
+		# Motor de Exportación Directa (Convertidor)
+		self.direct_convert_manager = DirectConvertManager()
+		self.direct_convert_manager.global_progress.connect(self._on_proxy_progress) # Reciclamos tu UI de progreso
+		self.direct_convert_manager.finished.connect(self._on_direct_convert_finished)
+		self.direct_convert_manager.system_alert.connect(self._show_os_notification)
+		self.direct_convert_manager.process_resume.connect(self._quit_os_notification)
+
 		#Procesamiento por lote implementado desde Batch_engine
 		self.is_batch_mode: bool = False
 		self.batch_manager = BatchManager()
@@ -131,6 +138,7 @@ class MainWindow(QtWidgets.QMainWindow):
 		self.landing.requestLoadImage.connect(self._handle_request_load_image)
 		self.landing.requestLoadBatch.connect(self._start_batch_workflow)
 		self.landing.requestLoadAI.connect(self._start_ai_workflow)
+		self.converter.request_convert.connect(self._start_direct_conversion)
 
         # --- Desde las vistas de Trabajo (Atrás / Cancelar) ---
 		self.converter.request_cancel.connect(self._navigate_home)
@@ -166,6 +174,39 @@ class MainWindow(QtWidgets.QMainWindow):
 		# El editor toolbar solo debe estar activo en el Canvas 
 		is_canvas_active = (idx == ViewIndex.CANVAS)
 		self.update_toolbar_state(is_canvas_active)
+
+	# metodos del convertidor
+	def _start_direct_conversion(self, payload: dict):
+		"""Lanza el proceso de exportación final del Convertidor."""
+		# Reciclamos tu diálogo de espera que usas en los proxies
+		self.proxy_wait_dialog = QtWidgets.QProgressDialog("Inicializando exportación...", "Cancelar", 0, len(payload["manifest"]), self)
+		self.proxy_wait_dialog.setWindowTitle("Convirtiendo Acervo")
+		self.proxy_wait_dialog.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+		self.proxy_wait_dialog.setAutoClose(False)
+		self.proxy_wait_dialog.setAutoReset(False)
+		self.proxy_wait_dialog.canceled.connect(self.direct_convert_manager.cancel)
+		self.proxy_wait_dialog.show()
+
+		# Arrancar motor
+		self.direct_convert_manager.process_manifest(payload["output_dir"], payload["manifest"])
+
+	def _on_direct_convert_finished(self, successes: int, errors: int):
+		"""Cierra el diálogo y purga la memoria del Registry."""
+		if hasattr(self, 'proxy_wait_dialog') and self.proxy_wait_dialog:
+			self.proxy_wait_dialog.hide()
+			self.proxy_wait_dialog.deleteLater()
+			self.proxy_wait_dialog = None
+
+		# Importante: Limpiamos la RAM de los filtros guardados
+		from core.filter_registry import FilterRegistry
+		FilterRegistry.clear_memory()
+
+		QtWidgets.QMessageBox.information(
+			self, "Conversión Terminada",
+			f"Proceso finalizado.\n\n✔️ Exportados: {successes}\n⚠️ Errores: {errors}"
+		)
+		# Devuelve al usuario a una interfaz limpia
+		self._navigate_home()
 
 	#Metodos del proxy
 	def _on_proxy_progress(self, actuales: int, totales: int, mensaje: str):

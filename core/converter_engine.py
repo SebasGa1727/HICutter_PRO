@@ -5,6 +5,8 @@ import time
 import multiprocessing
 import psutil
 import math
+import shutil
+import numpy as np
 try:
     import rawpy
     RAWPY_AVAILABLE = True
@@ -139,7 +141,7 @@ class ProxyWorker(QtCore.QRunnable):
                             rgb = raw.postprocess(
                                 use_camera_wb=True,                                 # Respeta el balance de blancos de la cámara
                                 half_size=False,                                    # Mantiene la resolusion completa
-                                no_auto_bright=True,                                # APAGA el auto-brillo (Evita que el papel se queme o se lave)
+                                no_auto_bright=False,                                # APAGA el auto-brillo (Evita que el papel se queme o se lave)
                                 demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR,  # Elimina las "Escaleras" que se generan en las letras sin saturar la ram
                                 output_color=rawpy.ColorSpace.sRGB                  # Espacio de color estandar
                             ) 
@@ -344,3 +346,195 @@ class ProxyManager(QtCore.QObject):
     def _quit_os_notification(self, state: bool):
         '''Mandamos notificacion de que el proceso ha sido restaurado'''
         self.process_resume.emit(state)
+
+
+# MOTOR DE CONVERSIÓN MASIVA DIRECTA
+class DirectConvertSignals(QtCore.QObject):
+    progress_update = QtCore.pyqtSignal(int, int, str)
+    finished = QtCore.pyqtSignal(int, int)             
+    error = QtCore.pyqtSignal(str, str)                
+    resource_warning = QtCore.pyqtSignal(str)
+    process_resume = QtCore.pyqtSignal(bool)
+
+class DirectConvertWorker(QtCore.QRunnable):
+    def __init__(self, task: dict, output_dir: str, export_config: dict, check_cancel_func):
+        super().__init__()
+        self.task = task
+        self.output_dir = output_dir
+        self.export_config = export_config # Recibe un diccionario en RAM inyectado
+        self.check_cancel = check_cancel_func
+        self.signals = DirectConvertSignals()
+
+    @QtCore.pyqtSlot()
+    def run(self):
+        if self.check_cancel(): return
+
+        orig_path = self.task["original_path"]
+        action = self.task["action"]
+        virtual_path = self.task["virtual_path"]
+        filters = self.task.get("filters", {})
+        
+        final_path = os.path.join(self.output_dir, virtual_path)
+        os.makedirs(os.path.dirname(final_path), exist_ok=True)
+        
+        try:
+            if action == "copy":
+                shutil.copy2(orig_path, final_path)
+                self.signals.progress_update.emit(1, 0, f"Copiado: {os.path.basename(orig_path)}")
+                return
+
+            alert_callback = lambda msg: self.signals.resource_warning.emit(msg)
+            resume_callback = lambda state: self.signals.process_resume.emit(state)
+            if not wait_for_resources(self.check_cancel, alert_callback, resume_callback, safe_margin_mb=600):
+                return
+
+            ext = os.path.splitext(orig_path)[1].lower()
+            img_rgb = None
+
+            if ext == '.cr2':
+                if not RAWPY_AVAILABLE:
+                    raise ImportError("rawpy no instalado.")
+                with rawpy.imread(orig_path) as raw:
+                    img_rgb = raw.postprocess(
+                        use_camera_wb=True,
+                        no_auto_bright=False,
+                        half_size=False,
+                        demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR, 
+                        output_color=rawpy.ColorSpace.sRGB
+                    )
+                    
+            elif ext in ['.tif', '.tiff', '.jpg', '.jpeg', '.png']:
+                img_rgb = cv2.imread(orig_path, cv2.IMREAD_COLOR)
+                if img_rgb is None:
+                    raise ValueError("Matriz nula, archivo posiblemente corrupto.")
+                img_rgb = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2RGB)
+                del img_rgb
+
+            if self.check_cancel(): return
+
+            if filters and any(v != 0 for v in filters.values()):
+                img_rgb = self._apply_lut(img_rgb, filters)
+
+            fmt = self.export_config["format"]
+            quality = self.export_config["quality"]
+            
+            # Pasamos directamente a Pillow sin conversiones extra
+            pil_img = Image.fromarray(img_rgb)
+            
+            if fmt == "jpg":
+                pil_img.save(final_path, 'JPEG', quality=quality, subsampling=0)
+            else:
+                pil_img.save(final_path, 'PNG')
+
+            del img_rgb
+            del pil_img
+
+            self.signals.progress_update.emit(1, 0, f"Procesado: {os.path.basename(final_path)}")
+
+        except Exception as e:
+            logger.error(f"Fallo de exportación en {orig_path}", exc_info=True)
+            self.signals.error.emit(orig_path, str(e))
+
+    def _apply_lut(self, img_rgb: np.ndarray, settings: dict) -> np.ndarray:
+        """LUT adaptado para procesar imágenes en formato RGB directamente."""
+        x = np.arange(256, dtype=np.float32)
+        y = x + (settings.get("exposicion", 0) * 1.2)
+        y += settings.get("sombras", 0) * ((255 - x) / 255.0) * 0.8
+        y += settings.get("luces", 0) * (x / 255.0) * 0.8
+        
+        negros = settings.get("negros", 0)
+        blancos = settings.get("blancos", 0)
+        if negros != 0 or blancos != 0:
+            in_black = max(0, negros)
+            in_white = min(255, 255 - blancos)
+            if in_white > in_black:
+                y = (y - in_black) * (255.0 / (in_white - in_black))
+                
+        y = np.clip(y, 0, 255)
+        temp = settings.get("temperatura", 0)
+        
+        lut_b = np.clip(y - (temp * 0.6), 0, 255).astype(np.uint8)
+        lut_g = np.clip(y, 0, 255).astype(np.uint8)
+        lut_r = np.clip(y + (temp * 0.6), 0, 255).astype(np.uint8)
+        
+        lut_rgb = np.dstack((lut_r, lut_g, lut_b))
+        return cv2.LUT(img_rgb, lut_rgb)
+
+
+class DirectConvertManager(QtCore.QObject):
+    global_progress = QtCore.pyqtSignal(int, int, str) 
+    finished = QtCore.pyqtSignal(int, int)          
+    system_alert = QtCore.pyqtSignal(str)
+    process_resume = QtCore.pyqtSignal(bool)
+    
+    def __init__(self):
+        super().__init__()
+        self.pool = QtCore.QThreadPool()
+        self.is_cancelled = False
+        
+        self.total_tasks = 0
+        self.completed_tasks = 0
+        self.success_count = 0
+        self.error_count = 0
+        self.start_time = 0.0
+
+    def cancel(self):
+        self.is_cancelled = True
+        self.pool.clear()
+
+    def process_manifest(self, output_dir: str, manifest: list[dict]):
+        self.is_cancelled = False
+        self.total_tasks = len(manifest)
+        self.completed_tasks = 0
+        self.success_count = 0
+        self.error_count = 0
+        self.start_time = time.perf_counter()
+
+        safe_threads = calculate_optimal_threads(ram_per_worker_mb=500)
+        self.pool.setMaxThreadCount(safe_threads)
+
+        # Extraccion desde el converter_config
+        from utils.converter_config import config_manager
+        
+        # Extraemos los datos usando la llave exacta de tu categoría
+        fmt_idx = config_manager.get("convert_image", "format")
+        quality = config_manager.get("convert_image", "quality")
+        
+        # Empaquetamos un diccionario limpio para los obreros
+        export_config = {
+            "format": "png" if fmt_idx == 1 else "jpg",
+            "quality": quality if quality is not None else 90
+        }
+
+        self.global_progress.emit(0, self.total_tasks, "Iniciando exportación...")
+
+        for task in manifest:
+            worker = DirectConvertWorker(task, output_dir, export_config, lambda: self.is_cancelled)
+            worker.signals.progress_update.connect(self._on_worker_success)
+            worker.signals.error.connect(self._on_worker_error)
+            worker.signals.resource_warning.connect(self.system_alert.emit)
+            worker.signals.process_resume.connect(self.process_resume.emit)
+            self.pool.start(worker)
+
+    def _on_worker_success(self, _, __, msg: str):
+        self.completed_tasks += 1
+        self.success_count += 1
+        self._update_ui(msg)
+
+    def _on_worker_error(self, orig_path: str, err_msg: str):
+        self.completed_tasks += 1
+        self.error_count += 1
+        self._update_ui(f"Fallo en: {os.path.basename(orig_path)}")
+
+    def _update_ui(self, current_msg: str):
+        elapsed = time.perf_counter() - self.start_time
+        avg = elapsed / self.completed_tasks if self.completed_tasks > 0 else 0
+        eta_secs = avg * (self.total_tasks - self.completed_tasks)
+        
+        eta_str = f"{int(eta_secs//60)}m {int(eta_secs%60)}s" if eta_secs > 60 else f"{int(eta_secs)}s"
+        full_msg = f"Exportando...\nETA: {eta_str}\n\n{current_msg}"
+        
+        self.global_progress.emit(self.completed_tasks, self.total_tasks, full_msg)
+        
+        if self.completed_tasks == self.total_tasks:
+            self.finished.emit(self.success_count, self.error_count)

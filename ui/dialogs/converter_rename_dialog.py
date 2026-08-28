@@ -6,7 +6,7 @@ if __name__ == "__main__":
 from utils.logger import setup_logger
 from utils.asset_manager import assets
 from utils.converter_config import config_manager
-from ui.components.neon_widgets import NeonProxyStyle
+from ui.components.neon_widgets import NeonProxyStyle, CustomPushButton, CustomSpinBox
 
 logger = setup_logger(__name__)
 
@@ -22,6 +22,7 @@ class BatchRenameDialog(QtWidgets.QDialog):
         self._setup_ui()
         self._populate_table()
         self._update_preview()
+        self._preload_user_info()
 
     def _setup_ui(self):
         main_layout = QtWidgets.QVBoxLayout(self)
@@ -41,21 +42,19 @@ class BatchRenameDialog(QtWidgets.QDialog):
         config_layout.setContentsMargins(10, 10, 10, 10)
 
         # Creacion de los spinbox con self para acceder a sus atributos
-        self.spin_start = QtWidgets.QSpinBox()
+        self.spin_start = CustomSpinBox()
         self.spin_start.setRange(0, 99999)
         self.spin_start.setValue(1)
 
-        self.spin_padding = QtWidgets.QSpinBox()
+        self.spin_padding = CustomSpinBox()
         self.spin_padding.setRange(1, 6)
         self.spin_padding.setValue(3)
 
-        self.spin_step = QtWidgets.QSpinBox()
+        self.spin_step = CustomSpinBox()
         self.spin_step.setRange(1, 10000)
         self.spin_step.setValue(1)
 
         for spinbox in [self.spin_start, self.spin_padding, self.spin_step]:
-            spinbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            spinbox.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
             spinbox.setMinimumWidth(40)
             spinbox.valueChanged.connect(self._update_preview)
 
@@ -90,10 +89,10 @@ class BatchRenameDialog(QtWidgets.QDialog):
 
         # Botones de Acción (layout inferior)
         btn_layout = QtWidgets.QHBoxLayout()
-        self.btn_cancel = QtWidgets.QPushButton("Cancelar")
+        self.btn_cancel = CustomPushButton("Cancelar")
         self.btn_cancel.setProperty("estilo", "cancelar")
         
-        self.btn_apply = QtWidgets.QPushButton("Aplicar Renombrado")
+        self.btn_apply = CustomPushButton("Aplicar Renombrado")
         self.btn_apply.setProperty("estilo", "primario")
 
         self.invalid_char_warning = self._create_label("")
@@ -117,20 +116,28 @@ class BatchRenameDialog(QtWidgets.QDialog):
         self.btn_cancel.clicked.connect(self.reject)
         self.btn_apply.clicked.connect(self._continue)
 
+    def _preload_user_info(self):
+        """Carga la informacion del JSON utilizada previamente"""
+        self.spin_start.setValue(config_manager.get("batch_rename_dialog", "start") or 1)
+        self.spin_padding.setValue(config_manager.get("batch_rename_dialog", "padding") or 3)
+        self.spin_step.setValue(config_manager.get("batch_rename_dialog", "step") or 1)
+
     def _continue(self):
         """Guarda la informacion de los line edit para futuras ediciones y cierra el dialogo"""
+        config_manager.set("batch_rename_dialog", "start", self.spin_start.value())
+        config_manager.set("batch_rename_dialog", "padding", self.spin_padding.value())
+        config_manager.set("batch_rename_dialog", "step", self.spin_step.value())
         number = 1
         for line_edit in self.line_edit_list:
             config_manager.set("batch_rename_dialog", str(number), str(line_edit.text()))
             number += 1
         self.accept()
 
-    def _block_layout_builder(self, title: str, *args, line_edit: bool = None) -> QtWidgets.QVBoxLayout :
+    def _block_layout_builder(self, title: str, *args, line_edit: bool = None) -> QtWidgets.QVBoxLayout:
         """Creador de los bloques izquierdos, utilizando subfunciones de creacion de titulos y lineas editables"""
         main_layout = QtWidgets.QVBoxLayout()
         label = self._create_label(title)
         main_layout.addWidget(label)
-
         # Verifica si quiere o no crear un line edit, si si, LOS ARGS TIENEN QUE SER SOLAMENTE STRINGS
         if line_edit:
             self.line_edit_list = []
