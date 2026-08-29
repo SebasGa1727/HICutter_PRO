@@ -90,7 +90,7 @@ class AIResumeDialog(QtWidgets.QDialog):
         body_layout = QtWidgets.QHBoxLayout()
         
         # Panel Izquierdo (Visor)
-        self.preview_group = QtWidgets.QGroupBox("Visión de IA")
+        self.preview_group = QtWidgets.QGroupBox("Visión de IA", self)
         preview_layout = QtWidgets.QVBoxLayout(self.preview_group)
         
         self.lbl_preview = QtWidgets.QLabel("Selecciona una imagen de la lista")
@@ -101,10 +101,10 @@ class AIResumeDialog(QtWidgets.QDialog):
         preview_layout.addWidget(self.lbl_preview)
         
         # Panel Derecho (Lista)
-        self.list_group = QtWidgets.QGroupBox("Lista de Revisión")
+        self.list_group = QtWidgets.QGroupBox("Lista de Revisión", self)
         list_layout = QtWidgets.QVBoxLayout(self.list_group)
         
-        self.list_widget = QtWidgets.QListWidget()
+        self.list_widget = QtWidgets.QListWidget(self)
         self.list_widget.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.list_widget.currentItemChanged.connect(self._on_item_selected)
         
@@ -140,7 +140,7 @@ class AIResumeDialog(QtWidgets.QDialog):
         """Llena la lista con los Custom Widgets"""
         for data in self.review_data:
             item = QtWidgets.QListWidgetItem(self.list_widget)
-            custom_widget = AIReviewItemWidget(data)
+            custom_widget = AIReviewItemWidget(data, self)
             
             # Ajustamos el tamaño del QListWidgetItem al CustomWidget
             item.setSizeHint(custom_widget.sizeHint())

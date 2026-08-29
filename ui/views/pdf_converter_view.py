@@ -454,23 +454,23 @@ class PDFConverterView(QtWidgets.QWidget):
         layout = QtWidgets.QHBoxLayout(parent_widget)
         layout.setContentsMargins(10, 10, 10, 10)
         
-        splitter_h = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
+        splitter_h = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal, parent_widget)
         
         # Instanciar clase de búsqueda independiente
-        self.batch_searcher = LocalFilesSearcher()
+        self.batch_searcher = LocalFilesSearcher(parent_widget)
         
-        center_frame = QtWidgets.QGroupBox()
+        center_frame = QtWidgets.QGroupBox(parent_widget)
         center_frame.setMinimumWidth(400)
         center_layout = QtWidgets.QVBoxLayout(center_frame)
 
-        lbl_sandbox = QtWidgets.QLabel("PANEL DE TRABAJO")
+        lbl_sandbox = QtWidgets.QLabel("PANEL DE TRABAJO", parent_widget)
         lbl_sandbox.setProperty("estilo", "splitter_title")
 
         # Creamos el elemento de sandbox previamente armado en tree_view_components
-        self.tree_sandbox = SandboxTreeView()
+        self.tree_sandbox = SandboxTreeView(parent_widget)
 
         # Instanciar clase de configuración independiente
-        self.batch_config = ExportConfigPanel()
+        self.batch_config = ExportConfigPanel(parent_widget)
 
         sandbox_config_layout = QtWidgets.QHBoxLayout()
         sandbox_config_layout.addWidget(self.tree_sandbox, stretch=1)
@@ -494,12 +494,12 @@ class PDFConverterView(QtWidgets.QWidget):
         layout = QtWidgets.QHBoxLayout(parent_widget)
         layout.setContentsMargins(10, 10, 10, 10)
         
-        splitter_h = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
+        splitter_h = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal, parent_widget)
         
         # Instanciar NUEVA clase de búsqueda independiente
-        self.ind_searcher = LocalFilesSearcher()
+        self.ind_searcher = LocalFilesSearcher(parent_widget)
         
-        center_frame = QtWidgets.QGroupBox()
+        center_frame = QtWidgets.QGroupBox(parent_widget)
         center_frame.setMinimumWidth(400)
         center_frame.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         center_layout = QtWidgets.QVBoxLayout(center_frame)
@@ -540,7 +540,7 @@ class PDFConverterView(QtWidgets.QWidget):
         preview_layout.addWidget(self.canvas_ind, stretch=1)
         
         # 2. Instanciar NUEVA clase de configuración independiente
-        self.ind_config = ExportConfigPanel()
+        self.ind_config = ExportConfigPanel(parent_widget)
         
         sandbox_config_layout = QtWidgets.QHBoxLayout()
         sandbox_config_layout.addWidget(self.list_sandbox, stretch=1)

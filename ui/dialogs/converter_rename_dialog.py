@@ -36,21 +36,21 @@ class BatchRenameDialog(QtWidgets.QDialog):
         split_layout = QtWidgets.QHBoxLayout()
         
         # --- PANEL IZQUIERDO (Configuración - Mismo modelo que carpetas) ---
-        config_frame = QtWidgets.QFrame()
+        config_frame = QtWidgets.QFrame(self)
         config_frame.setMinimumWidth(230)
         config_layout = QtWidgets.QVBoxLayout(config_frame)
         config_layout.setContentsMargins(10, 10, 10, 10)
 
         # Creacion de los spinbox con self para acceder a sus atributos
-        self.spin_start = CustomSpinBox()
+        self.spin_start = CustomSpinBox(config_frame)
         self.spin_start.setRange(0, 99999)
         self.spin_start.setValue(1)
 
-        self.spin_padding = CustomSpinBox()
+        self.spin_padding = CustomSpinBox(config_frame)
         self.spin_padding.setRange(1, 6)
         self.spin_padding.setValue(3)
 
-        self.spin_step = CustomSpinBox()
+        self.spin_step = CustomSpinBox(config_frame)
         self.spin_step.setRange(1, 10000)
         self.spin_step.setValue(1)
 
@@ -76,7 +76,7 @@ class BatchRenameDialog(QtWidgets.QDialog):
         config_layout.addStretch(1)
 
         # --- PANEL DERECHO (Tabla Antes vs Después) ---
-        self.table = QtWidgets.QTableWidget()
+        self.table = QtWidgets.QTableWidget(self)
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["ORIGINAL", "NUEVO"])
         self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)

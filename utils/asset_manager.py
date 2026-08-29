@@ -1,8 +1,22 @@
 import os
+import sys
 from PyQt6 import QtGui, QtCore
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+def resource_path(relative_path: str) -> str:
+    """
+    Resuelve la ruta absoluta de los recursos.
+    Compatible con el entorno de desarrollo y con el empaquetado de PyInstaller.
+    """
+    if hasattr(sys, '_MEIPASS'):
+        # PyInstaller: devuelve la ruta de la carpeta temporal de extracción
+        return os.path.join(sys._MEIPASS, relative_path)
+    
+    # Desarrollo: calcula la ruta basándose en la ubicación de este script (carpeta utils)
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    return os.path.join(root_dir, relative_path)
 
 class AssetManager:
     """
@@ -16,8 +30,8 @@ class AssetManager:
     def __new__(cls): #<- Crea una unica instancia de memoria para este elemento, cada que se crea, verifica si ya existe para no crear mas
         if cls._instance is None:
             cls._instance = super(AssetManager, cls).__new__(cls)
-            # Definimos la ruta absoluta a la carpeta resources desde este archivo
-            cls._base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'resources'))
+            # aplicamos la funcion dinamica
+            cls._base_path = resource_path('resources')
         return cls._instance
 
     def __init__(self):
@@ -26,7 +40,6 @@ class AssetManager:
     def init_graphic_resources(self):
         """
         Este método inyecta todos los recursos pesados en la GPU/RAM de Qt.
-        IMPORTANTE: Solo debe llamarse DESPUÉS de instanciar QApplication.
         """
         if self._loaded_resources:
             return # Si ya se cargaron, ignoramos
@@ -36,10 +49,11 @@ class AssetManager:
         logger.info("Recursos cargados exitosamente")
 
     def _load_fonts(self):
-        """Método privado que interactúa con la base de datos tipográfica de Qt."""
-        font_id = QtGui.QFontDatabase.addApplicationFont("resources/hicutter_icons.ttf")
+        # Envolvemos la ruta de la fuente en resource_path
+        font_path = resource_path("resources/hicutter_icons.ttf")
+        font_id = QtGui.QFontDatabase.addApplicationFont(font_path)
         if font_id == -1:
-            logger.error("No se pudo cargar la fuente 'hicutter_icons.ttf'.")
+            logger.error(f"No se pudo cargar la fuente en: {font_path}")
         else:
             QtGui.QFontDatabase.applicationFontFamilies(font_id)
 

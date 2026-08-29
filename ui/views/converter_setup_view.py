@@ -68,18 +68,18 @@ class DirectConvertView(QtWidgets.QWidget):
         """
                                                     2. ZONA CENTRAL (El Splitter de 3 Paneles)
         """
-        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
+        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal, self)
         self.splitter.setChildrenCollapsible(False)
         self.splitter.setHandleWidth(14)
 
         # --- PANEL IZQUIERDO: Explorador de Windows ---
-        self.local_searcher = LocalFilesSearcher()
+        self.local_searcher = LocalFilesSearcher(self)
         # Sobreescribimos el texto del botón dinámicamente 
         self.local_searcher.btn_add_element.setText("AÑADIR AL ORGANIZADOR")
         self.local_searcher.btn_add_element.clicked.connect(self._add_elements_to_sandbox)
 
         # --- PANEL CENTRAL: Árbol del Sandbox ---
-        center_frame = QtWidgets.QGroupBox()
+        center_frame = QtWidgets.QGroupBox(self)
         center_layout = QtWidgets.QVBoxLayout(center_frame)
         center_layout.setContentsMargins(10, 0, 10, 0) #<- para separar de ambos splitters
 
@@ -88,7 +88,7 @@ class DirectConvertView(QtWidgets.QWidget):
         lbl_center.setProperty("estilo", "splitter_title")
 
         # CONFIGURACION DEL MENU DE CARPETAS 
-        self.menu_virtual_folder = QtWidgets.QMenu()
+        self.menu_virtual_folder = QtWidgets.QMenu(self)
         self.menu_virtual_folder.setToolTipsVisible(True)
 
         self.single_folder_menu = QtGui.QAction("Carpeta individual", self)
@@ -147,7 +147,7 @@ class DirectConvertView(QtWidgets.QWidget):
         sandbox_header_layout.addWidget(self.btn_delete_virtual_element)
 
         # Creamos el sandbox desde el tree_view_components
-        self.tree_sandbox = SandboxTreeView()
+        self.tree_sandbox = SandboxTreeView(center_frame)
         self.tree_sandbox.setEditTriggers(
             QtWidgets.QAbstractItemView.EditTrigger.DoubleClicked | 
             QtWidgets.QAbstractItemView.EditTrigger.EditKeyPressed)
@@ -168,14 +168,14 @@ class DirectConvertView(QtWidgets.QWidget):
         center_layout.addSpacing(13)
     
         # --- PANEL DERECHO: Cuadrícula de Miniaturas (visualizador) ---
-        right_frame = QtWidgets.QGroupBox()
+        right_frame = QtWidgets.QGroupBox(self)
         right_layout = QtWidgets.QVBoxLayout(right_frame)
         right_layout.setContentsMargins(10, 0, 0, 0) #<- Margenes para separar del splitter
 
         lbl_right = QtWidgets.QLabel("VISUALIZADOR")
         lbl_right.setProperty("estilo", "splitter_title")
 
-        self.list_thumbnails = QtWidgets.QListView()
+        self.list_thumbnails = QtWidgets.QListView(right_frame)
         self.list_thumbnails.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
         self.list_thumbnails.setIconSize(QtCore.QSize(140, 140))
         self.list_thumbnails.setGridSize(QtCore.QSize(170, 180))
@@ -571,7 +571,7 @@ class DirectConvertView(QtWidgets.QWidget):
 
     def _open_config_dialog(self) -> None:
         """Instancia y ejecuta el diálogo de configuración técnica"""
-        dialog = ConfigDialog()
+        dialog = ConfigDialog(self)
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             logger.info(f"Configuración técnica actualizada")
 

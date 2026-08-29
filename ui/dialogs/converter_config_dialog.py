@@ -22,10 +22,10 @@ class ConfigDialog(QtWidgets.QDialog):
         converter_lbl_title.setProperty("estilo", "title")
         converter_lbl_title.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
         
-        self.converter_format = CustomComboBox()
+        self.converter_format = CustomComboBox(self)
         self.converter_format.addItems(["JPG", "PNG"])
         
-        self.converter_quality = CustomSpinBox()
+        self.converter_quality = CustomSpinBox(self)
         self.converter_quality.setMaximumWidth(50)
         self.converter_quality.setRange(10, 100)
         self.converter_quality.setSuffix(" %")

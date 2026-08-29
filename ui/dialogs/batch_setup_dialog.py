@@ -40,7 +40,7 @@ class BatchSetupDialog(QtWidgets.QDialog):
         middle_layout.setContentsMargins(15, 15, 15, 15)
 
         # --- ORIGEN ---
-        origen_group = QtWidgets.QGroupBox()
+        origen_group = QtWidgets.QGroupBox(self)
         origen_layout = QtWidgets.QVBoxLayout(origen_group)
         origen_layout.setSpacing(20)
         origen_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -78,14 +78,14 @@ class BatchSetupDialog(QtWidgets.QDialog):
         origen_layout.addStretch(1)
 
         # --- DESTINO ---
-        destino_group = QtWidgets.QGroupBox()
+        destino_group = QtWidgets.QGroupBox(self)
         destino_layout = QtWidgets.QVBoxLayout(destino_group)
         destino_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         destino_lbl = CustomLabel("Destino y Guardado")
 
         # Modo de guardado
-        self.combo_mode = CustomComboBox()
+        self.combo_mode = CustomComboBox(self)
         self.combo_mode.addItems([
             "Reemplazar imágenes originales (Sobreescribir)",
             "Guardar en la misma ruta con sufijo",
@@ -94,7 +94,7 @@ class BatchSetupDialog(QtWidgets.QDialog):
         self.combo_mode.currentIndexChanged.connect(self._on_mode_changed)
 
         # Selector de carpeta de salida (Oculto por defecto)
-        self.out_dir_widget = QtWidgets.QWidget()
+        self.out_dir_widget = QtWidgets.QWidget(self)
         out_dir_layout = QtWidgets.QVBoxLayout(self.out_dir_widget)
         lbl_btn_out_dir_layout = QtWidgets.QHBoxLayout()
         lbl_btn_out_dir_layout.setContentsMargins(0, 0, 0, 0)
@@ -124,7 +124,7 @@ class BatchSetupDialog(QtWidgets.QDialog):
         self.out_dir_widget.setVisible(False)
 
         # Contenido de sufijo oculto por defecto
-        self.sufix_name = QtWidgets.QLineEdit()
+        self.sufix_name = QtWidgets.QLineEdit(parent=self)
         self.sufix_name.setPlaceholderText("Coloca el sufijo de tu archivo")
         self.sufix_name.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.sufix_name.setMaximumWidth(300)
@@ -140,7 +140,7 @@ class BatchSetupDialog(QtWidgets.QDialog):
         destino_layout.addStretch(1)
 
         # --- Config exportacion ---
-        config_group = QtWidgets.QGroupBox()
+        config_group = QtWidgets.QGroupBox(self)
         config_layout = QtWidgets.QVBoxLayout(config_group)
         config_layout.setSpacing(10)
 
@@ -149,12 +149,12 @@ class BatchSetupDialog(QtWidgets.QDialog):
 
         # Componenetes del formulario
         container_form_layout = QtWidgets.QHBoxLayout()
-        left_form_container = QtWidgets.QWidget()
+        left_form_container = QtWidgets.QWidget(self)
         left_config_form_layout = QtWidgets.QFormLayout(left_form_container)
         left_config_form_layout.setSpacing(10)
         left_config_form_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-        right_form_container = QtWidgets.QWidget()
+        right_form_container = QtWidgets.QWidget(self)
         right_config_form_layout = QtWidgets.QFormLayout(right_form_container)
         right_config_form_layout.setSpacing(10)
         right_config_form_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)

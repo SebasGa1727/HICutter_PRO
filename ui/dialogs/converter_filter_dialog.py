@@ -178,7 +178,7 @@ class FilterDialog(QtWidgets.QDialog):
         self._scaled_manager = ScaledPixmapManager()
 
         # --- Lógica de Retardo  ---
-        self._preview_timer = QtCore.QTimer()
+        self._preview_timer = QtCore.QTimer(self)
         self._preview_timer.setSingleShot(True)
         self._preview_timer.setInterval(200) # cooldown
         self._preview_timer.timeout.connect(self._apply_filters_and_preview)
@@ -192,13 +192,13 @@ class FilterDialog(QtWidgets.QDialog):
         
         # --- PANEL IZQUIERDO: Controles ---
         # Creamos area de scroll
-        self.scroll_area = QtWidgets.QScrollArea()
+        self.scroll_area = QtWidgets.QScrollArea(self)
         self.scroll_area.setWidgetResizable(True) #<- Permite que el contenido interno se adapte al ancho
         self.scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame) #<- Elimina bordes dobles nativos
         self.scroll_area.setMinimumWidth(200)
         self.scroll_area.setMaximumWidth(350)
 
-        self.left_panel = QtWidgets.QFrame()
+        self.left_panel = QtWidgets.QFrame(self.scroll_area)
         left_layout = QtWidgets.QVBoxLayout(self.left_panel)
         left_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
         
@@ -246,11 +246,11 @@ class FilterDialog(QtWidgets.QDialog):
             slider.valueChanged.connect(lambda: self._request_preview_update(sliders_list))
         
         # --- PANEL DERECHO: Previsualización ---
-        self.right_panel = QtWidgets.QFrame()
+        self.right_panel = QtWidgets.QFrame(self)
         self.right_panel.setMinimumWidth(500)
         right_layout = QtWidgets.QVBoxLayout(self.right_panel)
         
-        self.preview_label = QtWidgets.QLabel("No hay imagen disponible")
+        self.preview_label = QtWidgets.QLabel("No hay imagen disponible", self.right_panel)
         self.preview_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.preview_label.setStyleSheet("background-color: #171717; border: 1px solid #555;")
         self.preview_label.setScaledContents(False)

@@ -36,7 +36,7 @@ class IndividualExportDialog(QtWidgets.QDialog):
         self.main_layout.setContentsMargins(15, 15, 15, 15)
 
         # --- Ruta de guardado ---
-        dir_group = QtWidgets.QGroupBox()
+        dir_group = QtWidgets.QGroupBox(self)
         dir_layout = QtWidgets.QVBoxLayout(dir_group)
         dir_layout.setSpacing(15)
 
@@ -63,7 +63,7 @@ class IndividualExportDialog(QtWidgets.QDialog):
         dir_layout.addLayout(dir_btn_layout)
 
         # --- NOMBRE DEL ARCHIVO ---
-        name_group = QtWidgets.QGroupBox()
+        name_group = QtWidgets.QGroupBox(self)
         name_layout = QtWidgets.QVBoxLayout(name_group)
         name_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         name_layout.setSpacing(15)
@@ -79,7 +79,7 @@ class IndividualExportDialog(QtWidgets.QDialog):
         name_layout.addWidget(self.txt_filename)
 
         # --- CONFIGURACIÓN DE EXPORTACIÓN ---
-        config_group = QtWidgets.QGroupBox()
+        config_group = QtWidgets.QGroupBox(self)
         config_layout = QtWidgets.QVBoxLayout(config_group)
         config_layout.setSpacing(10)
 
@@ -88,7 +88,7 @@ class IndividualExportDialog(QtWidgets.QDialog):
         container_form_layout = QtWidgets.QHBoxLayout()
         
         # Formulario Izquierdo
-        left_form_container = QtWidgets.QWidget()
+        left_form_container = QtWidgets.QWidget(self)
         left_config_form_layout = QtWidgets.QFormLayout(left_form_container)
         left_config_form_layout.setSpacing(10)
         
@@ -103,7 +103,7 @@ class IndividualExportDialog(QtWidgets.QDialog):
         left_config_form_layout.addRow("DPI:", self.dpi_spinbox)
 
         # Formulario Derecho
-        right_form_container = QtWidgets.QWidget()
+        right_form_container = QtWidgets.QWidget(self)
         right_config_form_layout = QtWidgets.QFormLayout(right_form_container)
         right_config_form_layout.setSpacing(10)
 

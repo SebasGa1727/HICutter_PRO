@@ -116,7 +116,7 @@ class MultiFolderDialog(QtWidgets.QDialog):
         middle_layout.addLayout(right_layout, stretch=1)
 
         # Panel de Previsualización 
-        preview_group = QtWidgets.QGroupBox("Previsualización")
+        preview_group = QtWidgets.QGroupBox("Previsualización", self)
         preview_group.setStyleSheet("QGroupBox::title { margin-top: -7px; color: #BBB;} QGroupBox { border: 1px solid rgba(12, 140, 233, 0.5);}")
         preview_layout = QtWidgets.QVBoxLayout(preview_group)
         self.lbl_preview = QtWidgets.QLabel()
