@@ -1,23 +1,17 @@
 import logging
 import os
+import sys
 from logging.handlers import RotatingFileHandler
 
 def setup_logger(name: str) -> logging.Logger:
     """
     Configura y devuelve una instancia de Logger estandarizada para HICutter.
-    
     Se utiliza el patrón Singleton inherente del módulo logging de Python: 
     llamar a logging.getLogger(name) múltiples veces con el mismo nombre 
     devolverá la misma instancia.
-    
-    Args:
-        name (str): El nombre del módulo que solicita el logger (usualmente __name__).
-        
-    Returns:
-        logging.Logger: Instancia configurada lista para emitir eventos.
     """
     
-    # 1. Creación del Logger
+    # Creación del Logger
     logger = logging.getLogger(name)
     
     # Evitar que los mensajes se propaguen al logger raíz (evita duplicidad en consola)
@@ -51,10 +45,14 @@ def setup_logger(name: str) -> logging.Logger:
     console_handler.setFormatter(console_formatter)
 
     # b) Manejador de Archivo Rotativo (RotatingFileHandler)
-    # Se asegura de que el directorio 'logs' exista en la raíz del proyecto
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+    # Si estamos usando el ejecutable, verifica en al raiz del ejecutable, si no, la verifica en la raiz del proyectp
+    if getattr(sys, 'frozen', False):
+        log_dir = os.path.join(os.path.dirname(sys.executable), 'logs')
+
+    else:
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+
     os.makedirs(log_dir, exist_ok=True)
-    
     log_file_path = os.path.join(log_dir, 'hicutter_app.log')
     
     # maxBytes=5242880 (5 MB): Cuando el archivo alcance 5MB, se renombra a .log.1

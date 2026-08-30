@@ -137,8 +137,10 @@ class AIBatchWorker(QtCore.QRunnable, ConfiguredSaverMixin):
     def run(self):
         try:
             self.signals.log.emit("Cargando modelo de IA...")
-            
-            model_path = os.path.join(os.getcwd(), "ai", "YOLO_pose_2.0_medium.pt")
+            # Importacion segura para aplicacion desplegable
+            from utils.asset_manager import resource_path
+            model_path = resource_path(os.path.join("ai", "YOLO_pose_2.0_medium.pt"))
+
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"No se encontró el modelo IA en: {model_path}")
             

@@ -1,4 +1,5 @@
 import os
+import sys
 import ctypes
 import numpy as np
 import cv2
@@ -10,26 +11,25 @@ logger = setup_logger(__name__)
 
 def _get_hidden_dataset_dir() -> str:
     """
-    Calcula la raíz del programa, crea la carpeta y le inyecta el 
-    atributo nativo de 'Carpeta Oculta' en Windows.
+    Calcula la raíz de ejecución persistente.
+    Si está compilado, usa la carpeta donde está el .exe.
+    Si es código fuente, usa la carpeta del proyecto.
     """
-    # 1. Obtenemos la raíz del programa (Subiendo un nivel desde la carpeta 'core')
-    core_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.dirname(core_dir)
+    if getattr(sys, 'frozen', False):
+        # Si estamos usando PyInstaller: la raíz es donde vive el ejecutable
+        root_dir = os.path.dirname(sys.executable)
+    else:
+        # Si estamos en código fuente (IDE)
+        core_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(core_dir)
     
-    # 2. Definimos el nombre de la bóveda (Con un punto para ocultar en Unix/Linux)
     dataset_dir = os.path.join(root_dir, ".ai_dataset")
     
     if not os.path.exists(dataset_dir):
         os.makedirs(dataset_dir)
-        
-        # 3. Magia de Windows: Modificamos los atributos del sistema de archivos
         if os.name == 'nt':
             FILE_ATTRIBUTE_HIDDEN = 0x02
-            # Llamamos a la API del Kernel32 de Windows para ocultarla
-            ret = ctypes.windll.kernel32.SetFileAttributesW(dataset_dir, FILE_ATTRIBUTE_HIDDEN)
-            if not ret:
-                logger.warning(f"No se pudo aplicar el atributo oculto a {dataset_dir}")
+            ctypes.windll.kernel32.SetFileAttributesW(dataset_dir, FILE_ATTRIBUTE_HIDDEN)
                 
     return dataset_dir
 

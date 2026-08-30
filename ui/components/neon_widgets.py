@@ -1,4 +1,8 @@
 from PyQt6 import QtWidgets, QtCore, QtGui, QtSvg
+from utils.logger import setup_logger
+from utils.asset_manager import resource_path
+
+logger = setup_logger(__name__)
 
 class HiddenFilesFilterProxyModel(QtCore.QSortFilterProxyModel):
     """Filtra archivos y carpetas que empiezan con punto (.)"""
@@ -32,7 +36,7 @@ class NeonTreeView(QtWidgets.QTreeView):
             # 2. Ahora sí, le decimos a Qt: "Dibuja tus flechas encima de mi lienzo limpio".
             super().drawBranches(painter, rect, index)
         except Exception as e:
-            print(f"Error en 'drawBranches': {e}")
+            logger.error("Error en 'drawBranches'", exc_info=True)
     
 class NeonSelectionDelegate(QtWidgets.QStyledItemDelegate):
     """
@@ -56,13 +60,13 @@ class NeonSelectionDelegate(QtWidgets.QStyledItemDelegate):
                 opt.state &= ~QtWidgets.QStyle.StateFlag.State_Selected
                 opt.state &= ~QtWidgets.QStyle.StateFlag.State_HasFocus
                 
-                # 2. Pintamos nuestro propio fondo (Tu azul con 60% de opacidad)
+                # 2. Pintamos nuestro propio fondo
                 painter.save()
                 painter.setPen(QtCore.Qt.PenStyle.NoPen)
-                # rgba(12, 140, 233, 0.6) -> 0.6 * 255 = ~153 (Alfa)
-                painter.setBrush(QtGui.QColor(12, 140, 233, 153)) # <-Aqui se modifica el color de fondo para la seleccion de color
+
+                painter.setBrush(QtGui.QColor(12, 140, 233, 153)) # <-Se modifica el color de fondo para la seleccion de color
                 
-                # Dibujamos un rectángulo con bordes redondeados (6px) para que coincida con tu QSS
+                # Dibujamos un rectángulo con bordes redondeados (6px) para que coincida con el QSS
                 painter.drawRoundedRect(opt.rect, 4, 4)
                 painter.restore()
                 
@@ -70,7 +74,6 @@ class NeonSelectionDelegate(QtWidgets.QStyledItemDelegate):
                 opt.palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor("#ffffff"))
 
             # 4. Le devolvemos el control a Qt para que dibuje el texto y el ícono 
-            # (pero como ya le quitamos la bandera de selección, no dibujará el fondo nativo)
             super().paint(painter, opt, index)
         except Exception as e:
             print(f"Error en NeonSelectionDelegate: {e}")
@@ -97,7 +100,7 @@ class NeonProxyStyle(QtWidgets.QProxyStyle):
     def __init__(self, style=None):
         super().__init__(style)
         # Precargamos el SVG en memoria para no leer el disco cada vez que se dibuja un botón
-        self.arrow_down_renderer = QtSvg.QSvgRenderer("resources/icons/flecha_abajo.svg")
+        self.arrow_down_renderer = QtSvg.QSvgRenderer(resource_path("resources/icons/flecha_abajo.svg"))
 
     def drawPrimitive(self, element, option, painter, widget=None):
         # PE_FrameFocusRect es el nombre interno del sombreado de foco nativo
@@ -105,14 +108,11 @@ class NeonProxyStyle(QtWidgets.QProxyStyle):
             # Al hacer return sin llamar a super(), el sombreado simplemente nunca se dibuja.
             return 
 
-        if element == QtWidgets.QStyle.PrimitiveElement.PE_IndicatorArrowDown:
-            
-            # Qt nos entrega 'option.rect', que es la caja invisible PERFECTA calculada 
-            # por el motor nativo donde iba a pintar su flecha gris.
+        if element in (QtWidgets.QStyle.PrimitiveElement.PE_IndicatorArrowDown, QtWidgets.QStyle.PrimitiveElement.PE_IndicatorButtonDropDown):
+        
+            # Qt nos entrega 'option.rect', que es la caja invisible PERFECTA
             rect = option.rect
-            
-            # Si la caja nativa es muy grande, podemos calcular un cuadro 
-            # más pequeño (ej. 12x12 px) justo en el centro de esa zona.
+            # Calculamos su tamaño 
             size = 8
             x = rect.center().x() - (size / 2)
             y = rect.center().y() - (size / 2)
@@ -120,12 +120,13 @@ class NeonProxyStyle(QtWidgets.QProxyStyle):
 
             # Usamos nuestro SVG en lugar de la brocha nativa de Qt
             self.arrow_down_renderer.render(painter, custom_rect)
-            
-            # Retornamos sin llamar al 'super()' para que la flecha gris original NO se dibuje
             return
         
         # Para todo lo demás, dejamos que Qt dibuje normalmente
-        super().drawPrimitive(element, option, painter, widget)
+        try:
+            super().drawPrimitive(element, option, painter, widget)
+        except RuntimeError:
+            pass
 
 class CustomSpinBox(QtWidgets.QSpinBox):
     def __init__(self, parent=None):

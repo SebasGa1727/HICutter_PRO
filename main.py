@@ -113,11 +113,11 @@ def main() -> None:
         assets.init_graphic_resources()
 
         # Instanciar orquestador en el Hilo Principal (Estricto en PyQt6)
-        mw = app_window.MainWindow()
-        mw.resize(1000, 700)
-        mw.showMaximized()
+        app._main_window = app_window.MainWindow()
+        app._main_window.resize(1000, 700)
+        app._main_window.showMaximized()
         
-        splash.finish(mw)
+        splash.finish(app._main_window)
 
     # Iniciar Worker de carga real
     worker = InitWorker()
