@@ -1,12 +1,17 @@
 import sys
 import os
 import ctypes
+import multiprocessing
 from PyQt6 import QtWidgets, QtGui, QtCore
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 # @ Created by SGV.dev
+
+# Le decimos a YOLO que estamos en producción y tiene prohibido auto-actualizarse o descargar cosas.
+os.environ["YOLO_AUTOUPDATE"] = "False"
+os.environ["YOLO_VERBOSE"] = "False"
 
 def resource_path(relative_path: str) -> str:
     """Calcula la ruta absoluta de forma segura para PyInstaller (Bootstrapper version)."""
@@ -131,4 +136,5 @@ def main() -> None:
     sys.exit(app.exec())
 
 if __name__ == '__main__':
+    multiprocessing.freeze_support()
     main()
